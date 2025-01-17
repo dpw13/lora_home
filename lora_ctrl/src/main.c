@@ -12,6 +12,8 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/lorawan/lorawan.h>
 #include "../lorawan/eui.h"
+#include "adc.h"
+#include "pwm.h"
 
 LOG_MODULE_REGISTER(lorawan_fuota, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
@@ -51,6 +53,14 @@ int main(void)
 	const struct device *lora_dev;
 	struct lorawan_join_config join_cfg;
 	int ret;
+
+	adc_init();
+	pwm_init();
+
+	uint16_t bat = adc_read_battery();
+	LOG_INF("Battery: %04x", bat);
+
+	pwm_set2(0, bat);
 
 	struct lorawan_downlink_cb downlink_cb = {
 		.port = LW_RECV_PORT_ANY,
