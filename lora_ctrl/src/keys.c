@@ -8,7 +8,7 @@
 #define EUI_KEYS_ITER_COUNT 8
 #define EUI_KEYS_ALG        PSA_ALG_PBKDF2_HMAC(PSA_ALG_SHA_256)
 
-LOG_MODULE_REGISTER(keys, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
+LOG_MODULE_REGISTER(keys, LOG_LEVEL_INF);
 
 const uint8_t join_eui[] = LORAWAN_JOIN_EUI;
 
@@ -36,19 +36,22 @@ int generate_keys(void) {
 
 	status = psa_key_derivation_setup(&operation, EUI_KEYS_ALG);
 	if (status != PSA_SUCCESS) {
+		LOG_ERR("Failed psa_key_derivation_setup: %d", status);
 		goto out;
 	}
 
 	status = psa_key_derivation_input_integer(&operation, PSA_KEY_DERIVATION_INPUT_COST,
 						  EUI_KEYS_ITER_COUNT);
 	if (status != PSA_SUCCESS) {
+		LOG_ERR("Failed psa_key_derivation_input_integer: %d", status);
 		goto out;
 	}
 
-    /* Salt with the join EUI */
+	/* Salt with the join EUI */
 	status = psa_key_derivation_input_bytes(&operation, PSA_KEY_DERIVATION_INPUT_SALT,
 						join_eui, sizeof(join_eui));
 	if (status != PSA_SUCCESS) {
+		LOG_ERR("Failed psa_key_derivation_input_bytes salt: %d", status);
 		goto out;
 	}
 
@@ -58,24 +61,30 @@ int generate_keys(void) {
 		LOG_ERR("hwinfo failed: %d", ret);
 		goto out;
 	}
+	LOG_HEXDUMP_DBG(dev_id, sizeof(dev_id), "Device ID");
 
-    /* Use the device ID as a low-entropy input */
+    	/* Use the device ID as a low-entropy input */
 	status = psa_key_derivation_input_bytes(&operation, PSA_KEY_DERIVATION_INPUT_PASSWORD,
 						dev_id, sizeof(dev_id));
 	if (status != PSA_SUCCESS) {
+		LOG_ERR("Failed psa_key_derivation_input_bytes device ID: %d", status);
 		goto out;
 	}
 
 	status = psa_key_derivation_output_bytes(&operation, (uint8_t *)&dev_keys, sizeof(struct dev_keys_t));
 	if (status != PSA_SUCCESS) {
+		LOG_ERR("Failed psa_key_derivation_output_bytes: %d", status);
 		goto out;
 	}
+
+	LOG_HEXDUMP_DBG(dev_keys.dev, 8, "Device EUI");
+	LOG_HEXDUMP_DBG(dev_keys.app, 8, "App key");
 
 out:
 	psa_reset_key_attributes(&attributes);
 	psa_key_derivation_abort(&operation);
 
-	return 1;
+	return status;
 }
 
 uint8_t *get_dev_eui() {

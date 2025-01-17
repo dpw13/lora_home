@@ -21,11 +21,11 @@ int adc_init(void)
 	/* Configure channels individually prior to sampling. */
 	for (size_t i = 0U; i < ARRAY_SIZE(adc_channels); i++) {
 		if (!adc_is_ready_dt(&adc_channels[i])) {
-			LOG_ERR("ADC controller device %s not ready\n", adc_channels[i].dev->name);
+			LOG_ERR("ADC controller device %s chan %d not ready\n", adc_channels[i].dev->name, i);
 			return 0;
 		}
 
-		LOG_INF("ADC %s:%d: %d bits, vref %d, %d ticks", adc_channels[i].dev->name,
+		LOG_DBG("ADC %s:%d: %d bits, vref %d, %d ticks", adc_channels[i].dev->name,
 			adc_channels[i].channel_id, adc_channels[i].resolution, adc_channels[i].vref_mv,
 			adc_channels[i].channel_cfg.acquisition_time);
 

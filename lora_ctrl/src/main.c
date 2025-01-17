@@ -10,132 +10,70 @@
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/lorawan/lorawan.h>
-#include "../lorawan/eui.h"
+#include <zephyr/drivers/lora.h>
 #include "adc.h"
 #include "pwm.h"
+#include "buttons.h"
 
-LOG_MODULE_REGISTER(lorawan_fuota, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
+LOG_MODULE_REGISTER(main, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
-#define DELAY K_SECONDS(180)
+static const struct device *lora_dev = DEVICE_DT_GET(DT_ALIAS(lora0));
+static const struct lora_modem_config lora_cfg = {
+	.frequency = 915000000,
+	.bandwidth = BW_125_KHZ,
+	.datarate = SF_6,
+	.coding_rate = CR_4_8,
+	.public_network = 0,
+	.preamble_len = 100,
+	.tx_power = 20,
+};
 
-char data[] = {'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'};
-
-static void downlink_info(uint8_t port, uint8_t flags, int16_t rssi, int8_t snr, uint8_t len,
-			  const uint8_t *data)
-{
-	LOG_INF("Received from port %d, flags %d, RSSI %ddB, SNR %ddBm", port, flags, rssi, snr);
-	if (data) {
-		LOG_HEXDUMP_INF(data, len, "Payload: ");
-	}
-}
-
-static void datarate_changed(enum lorawan_datarate dr)
-{
-	uint8_t unused, max_size;
-
-	lorawan_get_payload_sizes(&unused, &max_size);
-	LOG_INF("New Datarate: DR %d, Max Payload %d", dr, max_size);
-}
-
-static void fuota_finished(void)
-{
-	LOG_INF("FUOTA finished. Reset device to apply firmware upgrade.");
-
-	/*
-	 * In an actual application the firmware should be rebooted here if
-	 * no important tasks are pending
-	 */
-}
-
-int main(void)
-{
-	const struct device *lora_dev;
-	struct lorawan_join_config join_cfg;
-	int ret;
-
-	adc_init();
-	pwm_init();
-
-	uint16_t bat = adc_read_battery();
-	LOG_INF("Battery: %04x", bat);
-
-	pwm_set2(0, bat);
-
-	struct lorawan_downlink_cb downlink_cb = {
-		.port = LW_RECV_PORT_ANY,
-		.cb = downlink_info
-	};
-
-	lora_dev = DEVICE_DT_GET(DT_ALIAS(lora0));
+int lora_init(void) {
 	if (!device_is_ready(lora_dev)) {
 		LOG_ERR("%s: device not ready.", lora_dev->name);
 		return -ENODEV;
 	}
 
-	/* Keys restored from NVM */
-	ret = lorawan_start();
-	if (ret < 0) {
-		LOG_ERR("lorawan_start failed: %d", ret);
-		return ret;
-	}
+        return 0;
+}
 
-	ret = lorawan_init_eui();
-	if (ret < 0) {
-		LOG_ERR("failed to initialize EUI: %d", ret);
-		return ret;
-	}
+int fuota_run(void);
 
-	lorawan_register_downlink_callback(&downlink_cb);
-	lorawan_register_dr_changed_callback(datarate_changed);
+uint8_t remote_msg[8] = {0};
 
-	join_cfg.mode = LORAWAN_ACT_OTAA;
-	/*
-	 * By not setting EUIs and keys we rely on the restored NVM values
-	 * and those generated in lorawan_init_eui()
-	 */
+int main(void)
+{
+	int ret;
 
-	LOG_INF("Joining network over OTAA");
-	ret = lorawan_join(&join_cfg);
-	if (ret < 0) {
-		LOG_ERR("lorawan_join_network failed: %d", ret);
-		return ret;
-	}
+	ret = adc_init();
+	ret = pwm_init();
+	ret = button_init();
+	ret = lora_init();
+	ret = lora_config(lora_dev, &lora_cfg);
 
-	lorawan_enable_adr(true);
-
-	/*
-	 * Clock synchronization is required to schedule the multicast session
-	 * in class C mode. It can also be used independent of FUOTA.
-	 */
-	lorawan_clock_sync_run();
-
-	/*
-	 * The multicast session setup service is automatically started in the
-	 * background. It is also responsible for switching to class C at a
-	 * specified time.
-	 */
-
-	/*
-	 * The fragmented data transport transfers the actual firmware image.
-	 * It could also be used in a class A session, but would take very long
-	 * in that case.
-	 */
-	lorawan_frag_transport_run(fuota_finished);
-
-	/*
-	 * Regular uplinks are required to open downlink slots in class A for
-	 * FUOTA setup by the server.
-	 */
 	while (1) {
-		ret = lorawan_send(2, data, sizeof(data), LORAWAN_MSG_UNCONFIRMED);
-		if (ret == 0) {
-			LOG_INF("Hello World sent!");
-		} else {
-			LOG_ERR("lorawan_send failed: %d", ret);
-		}
+		uint8_t btns = button_poll() | 0x02;
+		uint16_t bat = adc_read_battery();
+		LOG_INF("Battery: %04x Btns: %02x", bat, btns);
 
-		k_sleep(DELAY);
+		pwm_set2(0, bat);
+
+		if (btns == 0x07) {
+			fuota_run();
+		} else {
+			for (int i=0; i < 3; i++) {
+				if (btns & 0x01) {
+					int16_t rssi;
+					int8_t snr;
+
+					remote_msg[0] = i;
+					lora_send(lora_dev, remote_msg, sizeof(remote_msg));
+					lora_recv(lora_dev, remote_msg, sizeof(remote_msg), K_MSEC(200), &rssi, &snr);
+				}
+				btns >>= 1;
+			}
+		}
+		k_msleep(500);
 	}
 
 	return 0;

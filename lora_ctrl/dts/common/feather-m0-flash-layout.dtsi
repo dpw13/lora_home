@@ -6,25 +6,25 @@
 	partitions {
 		boot_partition: partition@0 {
 			label = "sam-ba";
-			reg = <0x00000000 DT_SIZE_K(16)>;
+			reg = <0x00000000 DT_SIZE_K(8)>;
 			read-only;
 		};
 
-		slot0_partition: partition@4000 {
+		slot0_partition: partition@2000 {
 			label = "slot0";
-			reg = <0x04000 DT_SIZE_K(116)>;
+			reg = <0x02000 DT_SIZE_K(116)>;
 			read-only;
 		};
 
-		slot1_partition: partition@21000 {
+		slot1_partition: partition@1f000 {
 			label = "slot1";
-			reg = <0x21000 DT_SIZE_K(116)>;
+			reg = <0x1f000 DT_SIZE_K(116)>;
 			read-only;
 		};
 
-		storage_partition: partition@3e000 {
+		storage_partition: partition@3c000 {
 			label = "storage";
-			reg = <0x0003e000 DT_SIZE_K(8)>;
+			reg = <0x0003c000 DT_SIZE_K(16)>;
 		};
 	};
 };
