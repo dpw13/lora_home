@@ -1,0 +1,34 @@
+
+RAK7268V2 - all-in-one lorawan gateway
+    - openwrt supported
+    - chirpstack supported out of box
+    - $140
+    
+
+SenseCAP M2 - all in one gateway from Seeed
+    - openwrt and chirpstack
+    - $100
+    - identical specs to RAK7268v2
+    - SX1302 containing an STM32L412K8Tx for USB communication
+        - FW https://github.com/Lora-net/sx1302_hal/commits/master/mcu_bin/rlz_010000_CoreCell_USB.bin
+        - FreeRTOS: https://github.com/Lora-net/sx1302_spi_usb_bridge/tree/master
+        - update using dfu-util
+    - openwrt https://wiki.seeedstudio.com/flash_opensource_firmware_to_m2_gateway/
+    - DTS: https://github.com/Seeed-Solution/LoRa_Gateway_OpenWRT/blob/main/target/linux/ramips/dts/mt7628an_sensecap_wm7628n.dts
+
+
+Seeed WM1302 SPI $30
+    - Pi hat $20 (GPS included)
+        - Pi4b $45
+        - TCO: ~$95
+
+Chirpstack openwrt base:
+    - https://github.com/chirpstack/chirpstack-gateway-os
+    - FUOTA server has no frontend, only a gRPC API
+        - https://github.com/chirpstack/chirpstack-fuota-server
+        - replace statik with embed, httpfs with io/fs
+        - replace migrate/v4/database/postgres with https://github.com/joncalhoun/migrate/blob/master/sqlx.go
+        - ~~replace postgres with sqlx config~~ postgres used elsewhere?
+            - chirpstack seems to use sqlite and redis, why add postgres?
+    - Luci modules: https://github.com/openwrt/luci/wiki/Modules
+    - Lua protobuf codegen: https://github.com/indygreg/lua-protobuf/wiki

@@ -1,0 +1,29 @@
+
+Seeed ESP32S3 Guide:
+https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/
+
+SX1262 XIAO shield schematic:
+https://files.seeedstudio.com/products/SenseCAP/Wio_SX1262/Schematic_Diagram_Wio-SX1262_for_XIAO.pdf
+
+Master dev key (generated and stored on build host, keep secret)
+AppKey and NwkKey also stored on build host and provisioned to devices and join server
+
+-> derive per-device root key using master key and hwid
+ -> provision per-device root key to HMAC upstream eFuse
+ -> encrypt AppKey and NwkKey with per-device root key and write to flash
+
+Device's eFuse stores per-device root key and uses this to decrypt AppKey and NwkKey, which
+are then used in the LoRaWAN stack. For devices without secure storage, the hashed hardware
+ID should be used as the per-device root key (somewhat less secure) to decrypt the AppKey
+and NwkKey.
+
+Devices need to be tracked with:
+- hardware ID
+- per-device root key
+
+x generate root keys
+x write root key to efuse
+x generate derived key from entropy
+x encrypt secrets with derived key
+x flash secrets and entropy to device
+x decrypt secrets at runtime
