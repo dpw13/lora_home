@@ -42,7 +42,7 @@ int lorawan_init_eui(void) {
 		mib_req.Param.JoinEui = get_join_eui();
 		status = LoRaMacMibSetRequestConfirm(&mib_req);
 		if (status != LORAMAC_STATUS_OK) {
-			LOG_ERR("Failed to set dev_eui: %s (%d)", 
+			LOG_ERR("Failed to set join_eui: %s (%d)", 
 				lorawan_status2str(status), lorawan_status2errno(status));
 		}
 
@@ -50,7 +50,7 @@ int lorawan_init_eui(void) {
 		mib_req.Param.NwkKey = get_nwk_key();
 		status = LoRaMacMibSetRequestConfirm(&mib_req);
 		if (status != LORAMAC_STATUS_OK) {
-			LOG_ERR("Failed to set dev_eui: %s (%d)", 
+			LOG_ERR("Failed to set nwk_key: %s (%d)", 
 				lorawan_status2str(status), lorawan_status2errno(status));
 		}
 
@@ -58,7 +58,7 @@ int lorawan_init_eui(void) {
 		mib_req.Param.AppKey = get_app_key();
 		status = LoRaMacMibSetRequestConfirm(&mib_req);
 		if (status != LORAMAC_STATUS_OK) {
-			LOG_ERR("Failed to set dev_eui: %s (%d)", 
+			LOG_ERR("Failed to set app_key: %s (%d)", 
 				lorawan_status2str(status), lorawan_status2errno(status));
 		}
 	}

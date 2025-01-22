@@ -47,7 +47,7 @@ static void fuota_finished(void)
 }
 
 int fuota_run(void) {
-	struct lorawan_join_config join_cfg;
+	struct lorawan_join_config join_cfg = {0};
 	int ret;
 
 	/* Keys restored from NVM */

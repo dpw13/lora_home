@@ -27,3 +27,9 @@ x generate derived key from entropy
 x encrypt secrets with derived key
 x flash secrets and entropy to device
 x decrypt secrets at runtime
+
+Running openocd:
+~/git/lora/lora_relay $ ~/openocd-esp32/bin/openocd 
+
+** OR **
+$ west debug --openocd ~/openocd-esp32/bin/openocd

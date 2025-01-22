@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.20.0)
 
-set(SHIELD seeed_xiao_sx1262)
+set(SHIELD seeed_b2b_sx1262)
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(lora_relay)
