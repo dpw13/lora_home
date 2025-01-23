@@ -17,12 +17,12 @@ LOG_MODULE_REGISTER(lorawan_fuota, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
 #define DELAY K_SECONDS(180)
 
-char data[] = {'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'};
+char data[] = {'a', 'b', 'c'};
 
 static void downlink_info(uint8_t port, uint8_t flags, int16_t rssi, int8_t snr, uint8_t len,
 			  const uint8_t *data)
 {
-	LOG_INF("Received from port %d, flags %d, RSSI %ddB, SNR %ddBm", port, flags, rssi, snr);
+	LOG_INF("Received from port %d, flags %d, RSSI %ddB, SNR %ddB", port, flags, rssi, snr);
 	if (data) {
 		LOG_HEXDUMP_INF(data, len, "Payload: ");
 	}
@@ -77,12 +77,15 @@ int fuota_run(void) {
 	 * and those generated in lorawan_init_eui()
 	 */
 
-	LOG_INF("Joining network over OTAA");
-	ret = lorawan_join(&join_cfg);
-	if (ret < 0) {
-		LOG_ERR("lorawan_join_network failed: %d", ret);
-		return ret;
-	}
+	do {
+		LOG_INF("Joining network over OTAA");
+		ret = lorawan_join(&join_cfg);
+		if (ret < 0) {
+			LOG_ERR("lorawan_join_network failed: %d", ret);
+			//return ret;
+			k_msleep(5000);
+		}
+	} while (ret < 0);
 
 	lorawan_enable_adr(true);
 

@@ -54,9 +54,8 @@ int main(void)
 		goto err;
 	}
 
-	if (ret == 0) {
-		fuota_run();
-	}
+	fuota_run();
+	k_msleep(1000);
 
 err:
 	return 0;

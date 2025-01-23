@@ -17,8 +17,8 @@ LOG_MODULE_REGISTER(keys, LOG_LEVEL_INF);
 struct provision_t {
     uint8_t dev_eui[8];
     uint8_t join_eui[8];
-    uint8_t app_key[8];
-    uint8_t nwk_key[8];
+    uint8_t app_key[16];
+    uint8_t nwk_key[16];
 };
 
 struct crypt_block_t {
@@ -109,8 +109,8 @@ int generate_keys(void) {
 	periph_module_disable(PERIPH_AES_MODULE);
 
 	LOG_HEXDUMP_DBG(provisioning.dev_eui, 8, "Dev EUI:");
-	LOG_HEXDUMP_DBG(provisioning.app_key, 8, "App key:");
-	LOG_HEXDUMP_DBG(provisioning.nwk_key, 8, "Nwk key:");
+	LOG_HEXDUMP_DBG(provisioning.app_key, 16, "App key:");
+	LOG_HEXDUMP_DBG(provisioning.nwk_key, 16, "Nwk key:");
 
 	return 0;
 }
