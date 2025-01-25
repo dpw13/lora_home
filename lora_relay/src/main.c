@@ -66,6 +66,8 @@ int main(void)
 
 	fuota_run();
 
+	k_msleep(2000);
+
 	uint8_t buf[256];
 	ret = charger_get_system((struct renogy_sys_t *)buf);
 	if (ret != 0) {
@@ -92,6 +94,7 @@ int main(void)
 		if (ret != 0) {
 			LOG_ERR("Failed to get charger state");
 		} else {
+			LOG_INF("Transmitting dyn status");
 			ret = lorawan_send(0x12, buf, sizeof(struct renogy_dyn_status_t), LORAWAN_MSG_UNCONFIRMED);
 			if (ret < 0) {
 				LOG_ERR("lorawan_send failure: %d", ret);
@@ -102,6 +105,7 @@ int main(void)
 		if (ret != 0) {
 			LOG_ERR("Failed to get charger stats");
 		} else {
+			LOG_INF("Transmitting charger stats");
 			ret = lorawan_send(0x13, buf, sizeof(struct renogy_dyn_stat_t), LORAWAN_MSG_UNCONFIRMED);
 			if (ret < 0) {
 				LOG_ERR("lorawan_send failure: %d", ret);

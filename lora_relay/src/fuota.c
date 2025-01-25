@@ -46,6 +46,12 @@ static void fuota_finished(void)
 	 */
 }
 
+/* This callback must have a static lifetime */
+static struct lorawan_downlink_cb downlink_cb = {
+	.port = LW_RECV_PORT_ANY,
+	.cb = downlink_info
+};
+
 int fuota_run(void) {
 	struct lorawan_join_config join_cfg = {0};
 	int ret;
@@ -62,11 +68,6 @@ int fuota_run(void) {
 		LOG_ERR("failed to initialize EUI: %d", ret);
 		return ret;
 	}
-
-	struct lorawan_downlink_cb downlink_cb = {
-		.port = LW_RECV_PORT_ANY,
-		.cb = downlink_info
-	};
 
 	lorawan_register_downlink_callback(&downlink_cb);
 	lorawan_register_dr_changed_callback(datarate_changed);

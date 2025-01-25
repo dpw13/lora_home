@@ -6,18 +6,18 @@
 
 #include "renogy.h"
 
-LOG_MODULE_REGISTER(mbc_sample, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(renogy, LOG_LEVEL_INF);
 
 static int client_iface;
 static uint8_t client_addr;
 
 const static struct modbus_iface_param client_param = {
 	.mode = MODBUS_MODE_RTU,
-	.rx_timeout = 50000,
+	.rx_timeout = 100000,
 	.serial = {
 		.baud = 9600,
 		.parity = UART_CFG_PARITY_NONE,
-		.stop_bits_client = UART_CFG_STOP_BITS_2,
+		.stop_bits_client = UART_CFG_STOP_BITS_1,
 	},
 };
 
@@ -26,20 +26,14 @@ const static struct modbus_iface_param client_param = {
 static int find_client(void) {
         int ret;
         uint16_t buf;
+        uint8_t i=1;
 
-        /* Try broadcast */
-        ret = modbus_read_holding_regs(client_iface, 0, REN_SYS_DEV_ADDR, &buf, 1);
+        ret = modbus_read_holding_regs(client_iface, i, REN_SYS_DEV_ADDR, &buf, 1);
+        LOG_INF("Addr %02x ret %d", i, ret);
+
         if (ret == 0) {
-                LOG_INF("Device responded to broadcast with addr %04x", buf);
-                return buf;
-        }
-
-        for (int i = 0x01; i < 0xF7; i++) {
-                ret = modbus_read_holding_regs(client_iface, i, REN_SYS_DEV_ADDR, &buf, 1);
-                if (ret == 0) {
-                        LOG_INF("Device responded at %02x with addr %04x", i, buf);
-                        return i;
-                }
+                LOG_INF("Device responded at %02x with addr %04x", i, buf);
+                return i;
         }
 
         /* Device not found */
@@ -47,27 +41,27 @@ static int find_client(void) {
 }
 
 int charger_get_system(struct renogy_sys_t *buf) {
-        return modbus_read_holding_regs(client_iface, client_addr, REN_SYS_CHARGE_RATING, (uint16_t *)buf, sizeof(struct renogy_sys_t));
+        return modbus_read_holding_regs(client_iface, client_addr, REN_SYS_CHARGE_RATING, (uint16_t *)buf, sizeof(struct renogy_sys_t)/2);
 }
 
 int charger_get_cur_stats(struct renogy_dyn_stat_t *buf) {
-        return modbus_read_holding_regs(client_iface, client_addr, REN_DYN_STAT_SOC, (uint16_t *)buf, sizeof(struct renogy_dyn_stat_t));
+        return modbus_read_holding_regs(client_iface, client_addr, REN_DYN_STAT_SOC, (uint16_t *)buf, sizeof(struct renogy_dyn_stat_t)/2);
 }
 
 int charger_get_daily_stats(struct renogy_dyn_daily_t *buf) {
-        return modbus_read_holding_regs(client_iface, client_addr, REN_DYN_DAILY_MIN_V, (uint16_t *)buf, sizeof(struct renogy_dyn_daily_t));
+        return modbus_read_holding_regs(client_iface, client_addr, REN_DYN_DAILY_MIN_V, (uint16_t *)buf, sizeof(struct renogy_dyn_daily_t)/2);
 }
 
 int charger_get_hist_stats(struct renogy_dyn_hist_t *buf) {
-        return modbus_read_holding_regs(client_iface, client_addr, REN_DYN_HIST_TOTAL_OP_DAYS, (uint16_t *)buf, sizeof(struct renogy_dyn_hist_t));
+        return modbus_read_holding_regs(client_iface, client_addr, REN_DYN_HIST_TOTAL_OP_DAYS, (uint16_t *)buf, sizeof(struct renogy_dyn_hist_t)/2);
 }
 
 int charger_get_state(struct renogy_dyn_status_t *buf) {
-        return modbus_read_holding_regs(client_iface, client_addr, REN_DYN_STATUS, (uint16_t *)buf, sizeof(struct renogy_dyn_status_t));
+        return modbus_read_holding_regs(client_iface, client_addr, REN_DYN_STATUS, (uint16_t *)buf, sizeof(struct renogy_dyn_status_t)/2);
 }
 
 int charger_get_bat_info(struct renogy_param_bat_t *buf) {
-        return modbus_read_holding_regs(client_iface, client_addr, REN_PARAM_NOM_CAPACITY, (uint16_t *)buf, sizeof(struct renogy_param_bat_t));
+        return modbus_read_holding_regs(client_iface, client_addr, REN_PARAM_NOM_CAPACITY, (uint16_t *)buf, sizeof(struct renogy_param_bat_t)/2);
 }
 
 int init_charger(void) {
@@ -81,6 +75,8 @@ int init_charger(void) {
                 LOG_ERR("Could not init modbus client: %d\n", ret);
                 return ret;
         }
+
+        k_msleep(100);
 
         ret = find_client();
         if (ret < 0) {

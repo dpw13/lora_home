@@ -94,6 +94,14 @@ struct renogy_dyn_status_t {
 
 #define REN_PARAM_NOM_CAPACITY          0xE002
 
+enum renogy_battery_type_t {
+        REN_BAT_OPEN,
+        REN_BAT_SEALED,
+        REN_BAT_GEL,
+        REN_BAT_LITHIUM,
+        REN_BAT_CUSTOM,
+};
+
 struct renogy_param_bat_t {
         uint16_t nom_capacity_Ah;
         uint8_t nom_bat_V;
