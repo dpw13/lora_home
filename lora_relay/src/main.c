@@ -11,6 +11,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/drivers/lora.h>
+#include <zephyr/lorawan/lorawan.h>
+
+#include "renogy.h"
 
 LOG_MODULE_REGISTER(main, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
@@ -54,8 +57,59 @@ int main(void)
 		goto err;
 	}
 
+	/* TODO: save address in settings */
+	ret = init_charger();
+	if (ret != 0) {
+		LOG_ERR("Failed to find charger");
+		goto err;
+	}
+
 	fuota_run();
-	k_msleep(1000);
+
+	uint8_t buf[256];
+	ret = charger_get_system((struct renogy_sys_t *)buf);
+	if (ret != 0) {
+		LOG_ERR("Failed to get charger system data");
+	} else {
+		ret = lorawan_send(0x10, buf, sizeof(struct renogy_sys_t), LORAWAN_MSG_UNCONFIRMED);
+		if (ret < 0) {
+			LOG_ERR("lorawan_send failure: %d", ret);
+		}
+	}
+
+	ret = charger_get_bat_info((struct renogy_param_bat_t *)buf);
+	if (ret != 0) {
+		LOG_ERR("Failed to get charger battery data");
+	} else {
+		ret = lorawan_send(0x11, buf, sizeof(struct renogy_param_bat_t), LORAWAN_MSG_UNCONFIRMED);
+		if (ret < 0) {
+			LOG_ERR("lorawan_send failure: %d", ret);
+		}
+	}
+
+	while (1) {
+		ret = charger_get_state((struct renogy_dyn_status_t *)buf);
+		if (ret != 0) {
+			LOG_ERR("Failed to get charger state");
+		} else {
+			ret = lorawan_send(0x12, buf, sizeof(struct renogy_dyn_status_t), LORAWAN_MSG_UNCONFIRMED);
+			if (ret < 0) {
+				LOG_ERR("lorawan_send failure: %d", ret);
+			}
+		}
+
+		ret = charger_get_cur_stats((struct renogy_dyn_stat_t *)buf);
+		if (ret != 0) {
+			LOG_ERR("Failed to get charger stats");
+		} else {
+			ret = lorawan_send(0x13, buf, sizeof(struct renogy_dyn_stat_t), LORAWAN_MSG_UNCONFIRMED);
+			if (ret < 0) {
+				LOG_ERR("lorawan_send failure: %d", ret);
+			}
+		}
+
+		k_sleep(K_MINUTES(5));
+	}
 
 err:
 	return 0;

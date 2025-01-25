@@ -108,18 +108,5 @@ int fuota_run(void) {
 	 */
 	lorawan_frag_transport_run(fuota_finished);
 
-	/*
-	 * Regular uplinks are required to open downlink slots in class A for
-	 * FUOTA setup by the server.
-	 */
-	while (1) {
-		ret = lorawan_send(2, data, sizeof(data), LORAWAN_MSG_UNCONFIRMED);
-		if (ret == 0) {
-			LOG_INF("Hello World sent!");
-		} else {
-			LOG_ERR("lorawan_send failed: %d", ret);
-		}
-
-		k_sleep(DELAY);
-	}
+	return 0;
 }
