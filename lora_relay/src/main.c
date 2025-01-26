@@ -79,16 +79,6 @@ int main(void)
 		}
 	}
 
-	ret = charger_get_bat_info((struct renogy_param_bat_t *)buf);
-	if (ret != 0) {
-		LOG_ERR("Failed to get charger battery data");
-	} else {
-		ret = lorawan_send(0x11, buf, sizeof(struct renogy_param_bat_t), LORAWAN_MSG_UNCONFIRMED);
-		if (ret < 0) {
-			LOG_ERR("lorawan_send failure: %d", ret);
-		}
-	}
-
 	while (1) {
 		ret = charger_get_state((struct renogy_dyn_status_t *)buf);
 		if (ret != 0) {
@@ -107,6 +97,16 @@ int main(void)
 		} else {
 			LOG_INF("Transmitting charger stats");
 			ret = lorawan_send(0x13, buf, sizeof(struct renogy_dyn_stat_t), LORAWAN_MSG_UNCONFIRMED);
+			if (ret < 0) {
+				LOG_ERR("lorawan_send failure: %d", ret);
+			}
+		}
+
+		ret = charger_get_bat_info((struct renogy_param_bat_t *)buf);
+		if (ret != 0) {
+			LOG_ERR("Failed to get charger battery data");
+		} else {
+			ret = lorawan_send(0x11, buf, sizeof(struct renogy_param_bat_t), LORAWAN_MSG_UNCONFIRMED);
 			if (ret < 0) {
 				LOG_ERR("lorawan_send failure: %d", ret);
 			}
