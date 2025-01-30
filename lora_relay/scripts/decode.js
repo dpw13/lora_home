@@ -19,6 +19,9 @@ function decodeUplink(input) {
                 case 0x13:
                         ret.data = decodeRenogyStatus(input.bytes)
                         break
+                case 0x80:
+                        /* Outputs */
+                        ret.data = { state: input.bytes[0] }
                 default:
                         break
                 }

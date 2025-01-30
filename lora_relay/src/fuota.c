@@ -19,15 +19,6 @@ LOG_MODULE_REGISTER(lorawan_fuota, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
 char data[] = {'a', 'b', 'c'};
 
-static void downlink_info(uint8_t port, uint8_t flags, int16_t rssi, int8_t snr, uint8_t len,
-			  const uint8_t *data)
-{
-	LOG_INF("Received from port %d, flags %d, RSSI %ddB, SNR %ddB", port, flags, rssi, snr);
-	if (data) {
-		LOG_HEXDUMP_INF(data, len, "Payload: ");
-	}
-}
-
 static void datarate_changed(enum lorawan_datarate dr)
 {
 	uint8_t unused, max_size;
@@ -46,12 +37,6 @@ static void fuota_finished(void)
 	 */
 }
 
-/* This callback must have a static lifetime */
-static struct lorawan_downlink_cb downlink_cb = {
-	.port = LW_RECV_PORT_ANY,
-	.cb = downlink_info
-};
-
 int fuota_run(void) {
 	struct lorawan_join_config join_cfg = {0};
 	int ret;
@@ -69,7 +54,6 @@ int fuota_run(void) {
 		return ret;
 	}
 
-	lorawan_register_downlink_callback(&downlink_cb);
 	lorawan_register_dr_changed_callback(datarate_changed);
 
 	join_cfg.mode = LORAWAN_ACT_OTAA;

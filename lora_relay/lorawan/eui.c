@@ -10,13 +10,9 @@
 LOG_MODULE_REGISTER(eui, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
 /**
- * Read the current dev EUI. If it is all zeros, regenerate the dev EUI
- * and keys. Must be called *after* lorawan_start() in order to ensure
- * existing data has been loaded from NVM.
+ * Read and decrypt lorawan secrets
  */
 int lorawan_init_eui(void) {
-	uint8_t zero[SE_EUI_SIZE] = { 0 };
-	uint8_t *cur_dev_eui = SecureElementGetDevEui();
 	LoRaMacStatus_t status;
 
 	MibRequestConfirm_t mib_req;

@@ -1,8 +1,23 @@
 #include <dt-bindings/pinctrl/esp32s3-pinctrl.h>
 
+/ {
+	aliases {
+		relay = &relay_btn;
+	};
+
+	buttons {
+		compatible = "gpio-keys";
+
+		relay_btn: button_0 {
+			gpios = <&xiao_d 1 (GPIO_ACTIVE_HIGH | GPIO_PUSH_PULL)>;
+			label = "relay0";
+		};
+	};
+};
+
 &uart0 {
 	status = "okay";
-	current-speed = <9600>;
+	/* current-speed = <9600>; */
 	pinctrl-0 = <&uart0_default>;
 	pinctrl-names = "default";
 

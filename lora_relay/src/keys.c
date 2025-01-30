@@ -1,4 +1,5 @@
 #include <zephyr/kernel.h>
+#include <zephyr/drivers/hwinfo.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/storage/flash_map.h>
 
@@ -58,7 +59,17 @@ int generate_keys(void) {
 
 	esp_efuse_block_t key_block;
 	if (!esp_efuse_find_purpose(ESP_EFUSE_KEY_PURPOSE_HMAC_UP, &key_block)) {
+		uint8_t dev_id[8];
+
 		LOG_ERR("Could not find HMAC_UP key in eFuse");
+		/* Print device ID */
+		err = hwinfo_get_device_id(dev_id, sizeof(dev_id));
+		if (err < 0) {
+			LOG_ERR("hwinfo failed: %d", err);
+		} else {
+			LOG_HEXDUMP_INF(dev_id, sizeof(dev_id), "Device ID");
+		}
+
 		return -ENOENT;
 	}
 
