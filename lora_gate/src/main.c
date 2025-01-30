@@ -15,6 +15,7 @@
 
 #include "renogy.h"
 #include "relay.h"
+#include "app.h"
 
 LOG_MODULE_REGISTER(main, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
@@ -37,82 +38,6 @@ int lora_init(void) {
 
         return 0;
 }
-
-uint8_t charger_present;
-
-int charger_xmit_cfg(void) {
-	int ret;
-	uint8_t buf[256];
-
-	if (!charger_present) {
-		return 0;
-	}
-
-	ret = charger_get_system((struct renogy_sys_t *)buf);
-	if (ret != 0) {
-		LOG_ERR("Failed to get charger system data");
-		return ret;
-	} else {
-		ret = lorawan_send(0x10, buf, sizeof(struct renogy_sys_t), LORAWAN_MSG_UNCONFIRMED);
-		if (ret < 0) {
-			LOG_ERR("lorawan_send failure: %d", ret);
-			return ret;
-		}
-	}
-
-	ret = charger_get_bat_info((struct renogy_param_bat_t *)buf);
-	if (ret != 0) {
-		LOG_ERR("Failed to get charger battery data");
-		return ret;
-	} else {
-		ret = lorawan_send(0x11, buf, sizeof(struct renogy_param_bat_t), LORAWAN_MSG_UNCONFIRMED);
-		if (ret < 0) {
-			LOG_ERR("lorawan_send failure: %d", ret);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-int charger_xmit_cur(void) {
-	int ret;
-	uint8_t buf[256];
-
-	if (!charger_present) {
-		return 0;
-	}
-
-	ret = charger_get_state((struct renogy_dyn_status_t *)buf);
-	if (ret != 0) {
-		LOG_ERR("Failed to get charger state");
-		return ret;
-	} else {
-		LOG_INF("Transmitting dyn status");
-		ret = lorawan_send(0x12, buf, sizeof(struct renogy_dyn_status_t), LORAWAN_MSG_UNCONFIRMED);
-		if (ret < 0) {
-			LOG_ERR("lorawan_send failure: %d", ret);
-			return ret;
-		}
-	}
-
-	ret = charger_get_cur_stats((struct renogy_dyn_stat_t *)buf);
-	if (ret != 0) {
-		LOG_ERR("Failed to get charger stats");
-		return ret;
-	} else {
-		LOG_INF("Transmitting charger stats");
-		ret = lorawan_send(0x13, buf, sizeof(struct renogy_dyn_stat_t), LORAWAN_MSG_UNCONFIRMED);
-		if (ret < 0) {
-			LOG_ERR("lorawan_send failure: %d", ret);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-int fuota_run(void);
 
 uint8_t remote_msg[8] = {0};
 
@@ -146,10 +71,10 @@ int main(void)
 
 	fuota_run();
 
+	/* Wait for datarate change*/
 	k_msleep(5000);
 	lorawan_relay_run();
 
-	/* TODO: move to separate file and invoke as period lorawan service */
 	charger_xmit_cfg();
 
 	while (1) {
