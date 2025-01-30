@@ -9,7 +9,7 @@ LOG_MODULE_REGISTER(relay, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
 #define LORAWAN_PORT_RELAY	0x80
 
-static const struct gpio_dt_spec relay = GPIO_DT_SPEC_GET(DT_ALIAS(relay), gpios);
+static const struct gpio_dt_spec relay = GPIO_DT_SPEC_GET_OR(DT_ALIAS(relay), gpios, {0});
 
 struct relay_svc_context {
 	/** Work item for regular uplink messages */

@@ -12,22 +12,6 @@
 
 LOG_MODULE_REGISTER(keys, LOG_LEVEL_INF);
 
-/* Not all of these are secrets but to simplify the provisioning process 
- * just include everything.
- */
-struct provision_t {
-    uint8_t dev_eui[8];
-    uint8_t join_eui[8];
-    uint8_t app_key[16];
-    uint8_t nwk_key[16];
-};
-
-struct crypt_block_t {
-	/* Read a full block of data for key derivation */
-	uint8_t entropy[SHA256_BLOCK_SZ];
-	struct provision_t p;
-};
-
 static struct provision_t provisioning = { 0 };
 
 #define STORAGE_ID	FIXED_PARTITION_ID(storage_partition)
