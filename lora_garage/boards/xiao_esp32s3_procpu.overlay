@@ -1,0 +1,22 @@
+#include <dt-bindings/pinctrl/esp32s3-pinctrl.h>
+
+/ {
+	aliases {
+		relay0 = &relay_btn0;
+		relay1 = &relay_btn1;
+	};
+
+	buttons {
+		compatible = "gpio-keys";
+
+		relay_btn0: button_0 {
+			gpios = <&xiao_d 0 (GPIO_ACTIVE_HIGH | GPIO_PUSH_PULL)>;
+			label = "relay0";
+		};
+
+		relay_btn1: button_1 {
+			gpios = <&xiao_d 1 (GPIO_ACTIVE_HIGH | GPIO_PUSH_PULL)>;
+			label = "relay1";
+		};
+	};
+};

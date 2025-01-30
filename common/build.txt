@@ -3,8 +3,11 @@ $ west build -b adafruit_feather_m0_lora lora_ctrl
 
 Flashing: bossa or bossac, offset 0x2000
 
-Relay controller:
-$ west build -b xiao_esp32s3/esp32s3/procpu --sysbuild lora_relay
+Gate controller:
+$ west build -b xiao_esp32s3/esp32s3/procpu --sysbuild lora_gate
+
+Garage controller:
+$ west build -b xiao_esp32s3/esp32s3/procpu --sysbuild lora_garage
 
 Provisioning:
 $ ./provision.py -v "Seeed" -m "XIAO ESP32-S3" -i "e8 06 90 9e 8e 4c c9 3f"

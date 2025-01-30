@@ -10,7 +10,10 @@ project(lora_garage)
 add_subdirectory(../common lora-common)
 
 FILE(GLOB app_sources src/*.c)
+FILE(GLOB common_sources ../common/src/*.c)
+FILE(GLOB common_board_sources ../common/src/esp32s3/*.c)
 target_sources(app PRIVATE ${app_sources} ${common_sources} ${common_board_sources})
+target_include_directories(app PRIVATE ../common/src)
 
 target_sources(app PRIVATE
         ${ZEPHYR_HAL_ESPRESSIF_MODULE_DIR}/components/hal/hmac_hal.c

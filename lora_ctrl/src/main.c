@@ -14,6 +14,7 @@
 #include <zephyr/drivers/gpio.h>
 #include "app_protocol.h"
 #include "adc.h"
+#include "fuota.h"
 #include "pwm.h"
 #include "buttons.h"
 
@@ -56,8 +57,6 @@ int lora_init(void) {
 
         return 0;
 }
-
-int fuota_run(void);
 
 struct lora_remote_uplink_t uplink;
 

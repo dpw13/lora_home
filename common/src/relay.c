@@ -7,9 +7,14 @@
 
 LOG_MODULE_REGISTER(relay, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
-#define LORAWAN_PORT_RELAY	0x80
-
-static const struct gpio_dt_spec relay = GPIO_DT_SPEC_GET_OR(DT_ALIAS(relay), gpios, {0});
+static const struct gpio_dt_spec relays[] = {
+#if DT_NODE_EXISTS(DT_ALIAS(relay0))
+	GPIO_DT_SPEC_GET(DT_ALIAS(relay0), gpios),
+#if DT_NODE_EXISTS(DT_ALIAS(relay1))
+	GPIO_DT_SPEC_GET(DT_ALIAS(relay1), gpios),
+#endif
+#endif
+};
 
 struct relay_svc_context {
 	/** Work item for regular uplink messages */
@@ -23,7 +28,7 @@ struct relay_svc_context {
 	 */
 	int64_t close_timeout;
 	/**
-	 * The current (software) state of the relay
+	 * The current (software) state of the relays
 	 */
 	uint8_t relay_state;
 };
@@ -56,24 +61,38 @@ static void downlink_info(uint8_t port, uint8_t flags, int16_t rssi, int8_t snr,
 }
 
 /* This callback must have a static lifetime */
-static const struct lorawan_downlink_cb downlink_cb = {
-	.port = LORAWAN_PORT_RELAY,
-	.cb = downlink_info
+static const struct lorawan_downlink_cb downlink_cb[] = {
+	{
+		.port = CONFIG_LORAWAN_PORT_RELAY_BASE+0,
+		.cb = downlink_info
+	}, {
+		.port = CONFIG_LORAWAN_PORT_RELAY_BASE+1,
+		.cb = downlink_info
+	},
 };
 
 static void relay_work_handler(struct k_work *work) {
 	uint8_t new_state;
+	int i;
 
 	k_sem_take(&ctx_sem, K_FOREVER);
 	/* Relay is active if we have not met the timeout */
+	/* TODO: wrong, need to set all bits */
 	new_state = (k_uptime_ticks() < ctx.close_timeout);
 	if (new_state != ctx.relay_state) {
+		ctx.relay_state = 0;
 		LOG_INF("Relay state %d", new_state);
-		ctx.relay_state = new_state;
-		gpio_pin_set_dt(&relay, new_state);
+		for (i=0; i<sizeof(relays); i++) {
+			gpio_pin_set_dt(&relays[i], new_state);
+			if (new_state) {
+				ctx.relay_state |= BIT(i);
+			}
+		}
 	}
 
-	lorawan_services_schedule_uplink(LORAWAN_PORT_RELAY, &ctx.relay_state, sizeof(ctx.relay_state), 500);
+	for (i=0; i<sizeof(relays); i++) {
+		lorawan_services_schedule_uplink(CONFIG_LORAWAN_PORT_RELAY_BASE + i, &ctx.relay_state, sizeof(ctx.relay_state), 500);
+	}
 	lorawan_services_reschedule_work(&ctx.relay_work, K_MSEC(ctx.period));
 	k_sem_give(&ctx_sem);
 }
@@ -82,9 +101,10 @@ int lorawan_relay_run(void) {
 	ctx.period = 30000;
 	ctx.relay_state = 0;
 
-	gpio_pin_configure_dt(&relay, GPIO_OUTPUT_LOW);
-
-	lorawan_register_downlink_callback(&downlink_cb);
+	for (int i=0; i<sizeof(relays); i++) {
+		gpio_pin_configure_dt(&relays[i], GPIO_OUTPUT_LOW);
+		lorawan_register_downlink_callback(&downlink_cb[i]);
+	}
 
 	k_work_init_delayable(&ctx.relay_work, relay_work_handler);
 	lorawan_services_reschedule_work(&ctx.relay_work, K_NO_WAIT);

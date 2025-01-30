@@ -1,0 +1,6 @@
+config LORAWAN_PORT_RELAY_BASE
+	hex "LoRaWAN starting port for relay control"
+	default 0x80
+	range 1 253
+	help
+	  The starting port number for relay control.
