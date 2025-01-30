@@ -13,7 +13,7 @@
 #include <zephyr/lorawan/lorawan.h>
 #include "../lorawan/eui.h"
 
-LOG_MODULE_REGISTER(lorawan_fuota, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
+LOG_MODULE_REGISTER(lorawan_fuota, CONFIG_LORAWAN_LOG_LEVEL);
 
 #define DELAY K_SECONDS(180)
 
@@ -86,6 +86,7 @@ int fuota_run(void) {
 
 	lorawan_enable_adr(true);
 
+#ifdef CONFIG_LORAWAN_SERVICES
 	/*
 	 * Clock synchronization is required to schedule the multicast session
 	 * in class C mode. It can also be used independent of FUOTA.
@@ -119,4 +120,7 @@ int fuota_run(void) {
 
 		k_sleep(DELAY);
 	}
+#else
+	return 0;
+#endif
 }

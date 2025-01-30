@@ -7,7 +7,7 @@
 #include <lw_priv.h>
 #include "../src/keys.h"
 
-LOG_MODULE_REGISTER(eui, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
+LOG_MODULE_REGISTER(eui, CONFIG_LORAWAN_LOG_LEVEL);
 
 /**
  * Read the current dev EUI. If it is all zeros, regenerate the dev EUI
