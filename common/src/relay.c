@@ -90,7 +90,7 @@ static void relay_work_handler(struct k_work *work) {
 		}
 	}
 
-	for (i=0; i<sizeof(relays); i++) {
+	for (i=0; i < ARRAY_SIZE(relays); i++) {
 		lorawan_services_schedule_uplink(CONFIG_LORAWAN_PORT_RELAY_BASE + i, &ctx.relay_state, sizeof(ctx.relay_state), 500);
 	}
 	lorawan_services_reschedule_work(&ctx.relay_work, K_MSEC(ctx.period));
@@ -101,7 +101,7 @@ int lorawan_relay_run(void) {
 	ctx.period = 30000;
 	ctx.relay_state = 0;
 
-	for (int i=0; i<sizeof(relays); i++) {
+	for (int i=0; i < ARRAY_SIZE(relays); i++) {
 		gpio_pin_configure_dt(&relays[i], GPIO_OUTPUT_LOW);
 		lorawan_register_downlink_callback(&downlink_cb[i]);
 	}

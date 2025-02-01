@@ -21,9 +21,3 @@ target_sources(app PRIVATE
         ${ZEPHYR_HAL_ESPRESSIF_MODULE_DIR}/components/efuse/${CONFIG_SOC_SERIES}/esp_efuse_utility.c
         ${ZEPHYR_HAL_ESPRESSIF_MODULE_DIR}/components/efuse/${CONFIG_SOC_SERIES}/esp_efuse_table.c
 )
-
-# The EUI code pokes lorawan internals
-set(ZEPHYR_CURRENT_LIBRARY loramac-node)
-FILE(GLOB lm_sources ../common/lorawan/*.c)
-zephyr_library_sources(${lm_sources})
-zephyr_include_directories(${ZEPHYR_BASE}/subsys/lorawan)

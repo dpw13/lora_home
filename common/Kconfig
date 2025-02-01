@@ -4,3 +4,6 @@ config LORAWAN_PORT_RELAY_BASE
 	range 1 253
 	help
 	  The starting port number for relay control.
+
+config HAS_PSA_STORAGE_SE
+	bool "Use PSA functions for secure element"

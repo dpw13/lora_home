@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+# Subscribes to MQTT topics to listen to proprietary LoRaWAN
+# frames sent by the remotes. Transforms the data sent by the
+# remote into downlinked commands for various controllers.
+
 import base64
 import binascii
 import json
