@@ -5,5 +5,32 @@ config LORAWAN_PORT_RELAY_BASE
 	help
 	  The starting port number for relay control.
 
+config ENTRANCE_RELAY_MOMENTARY_TIME_MS
+	int "Relay contact duration"
+	default 500
+	range 100 2000
+	help
+	  Sets the amount of time a NO relay will be closed on a momentary command.
+
+config ENTRANCE_HAS_AUTO_CLOSE
+	bool "Entrance automatically closes"
+	help
+	  If set, the entrance being controlled automatically closes after some
+	  ENTRANCE_AUTO_CLOSE_INTERVAL seconds. Otherwise the entrance always
+	  toggles at each relay closure.
+
+config ENTRANCE_AUTO_CLOSE_INTERVAL
+	int "Entrance auto-close interval"
+	depends on ENTRACE_HAS_AUTO_CLOSE
+	help
+	  The entrance being controlled automatically closes after
+	  the specified number of seconds.
+
+config ENTRANCE_MOVEMENT_DURATION
+	int "Entrance movement duration"
+	default 10
+	help
+	  The estimated time in seconds that the entrance takes to open or close.
+
 config HAS_PSA_STORAGE_SE
 	bool "Use PSA functions for secure element"

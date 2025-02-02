@@ -97,7 +97,7 @@ def do_logs(args: argparse.Namespace):
                         ts = log.created_at.seconds + log.created_at.nanos/1e9
                         tstr = time.ctime(ts)
                         print(f"{tstr}: {log.command} port {log.f_port}")
-                        for k, v in log.fields.items():
+                        for k, v in sorted(log.fields.items(), key=lambda kv: (kv[1], kv[0])):
                                 print(f"  {k}: {v}")
                 #print(f"Deployment {args.id} logs for {args.eui}: {response}")
 

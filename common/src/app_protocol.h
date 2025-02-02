@@ -58,7 +58,8 @@ struct lora_remote_downlink_t {
 #define LORAWAN_PORT_GARAGE1_RELAY	0x82
 
 enum entrance_state_t {
-	DOOR_STATE_CLOSED = 0,
+	DOOR_STATE_UNKNOWN = 0,
+	DOOR_STATE_CLOSED,
 	DOOR_STATE_MOVING,
 	DOOR_STATE_MOM_OPEN,  /*< Momentary open */
 	DOOR_STATE_HOLD_OPEN,
@@ -87,12 +88,12 @@ struct lorawan_entr_downlink_t {
  * hold is stored, so sending this message again with values
  * less than the current time cancels the hold.
  */
-struct lorawan_gate_sched_downlink_t {
+struct lorawan_entr_sched_downlink_t {
 	uint64_t hold_start;		/*< Hold start in 64-bit unix epoch */
 	uint32_t hold_duration_s;	/*< Hold duration in seconds */
 };
 
-struct lorawan_gate_sched_uplink_t {
+struct lorawan_entr_sched_uplink_t {
 	/* TODO, confirmation? */
 };
 
