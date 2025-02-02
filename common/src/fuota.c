@@ -9,6 +9,7 @@
 
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
+#include <zephyr/sys/reboot.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/lorawan/lorawan.h>
 #include "../lorawan/eui.h"
@@ -29,12 +30,8 @@ static void datarate_changed(enum lorawan_datarate dr)
 
 static void fuota_finished(void)
 {
-	LOG_INF("FUOTA finished. Reset device to apply firmware upgrade.");
-
-	/*
-	 * In an actual application the firmware should be rebooted here if
-	 * no important tasks are pending
-	 */
+	LOG_INF("FUOTA finished. Resetting device to apply firmware upgrade.");
+	sys_reboot(SYS_REBOOT_WARM);
 }
 
 int fuota_run(void) {

@@ -5,6 +5,7 @@
 import argparse
 import binascii
 import grpc
+import math
 import time
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
@@ -14,6 +15,7 @@ import fuota.fuota_pb2 as fuota
 import fuota.fuota_pb2_grpc as fuota_grpc
 from google.protobuf import duration_pb2
 
+DL_FRAME_RATE = 1 # 1 packet per second, see chirpstack network scheduler config
 
 def get_dl_freq(channel: int):
         freq_base = 923300000 # US915
@@ -25,6 +27,17 @@ def do_deploy(args: argparse.Namespace):
                 payload = fw.read()
         print(f"Read {len(payload)} B from {args.firmware}")
 
+        uncoded_frames = len(payload) / args.fragment_size
+        redundancy_frames = math.ceil(uncoded_frames * (args.fragment_redundancy / 100.0))
+        uncoded_frames = math.ceil(uncoded_frames)
+        print(f"Expecting {uncoded_frames} frames and {redundancy_frames} extra parity blocks")
+
+        frame_count = uncoded_frames + redundancy_frames
+        # Add 20% to be certain
+        dl_duration = 1.2 * (frame_count // DL_FRAME_RATE)
+        mcast_timeout_log2 = int(math.ceil(math.log2(dl_duration)))
+        print(f"Downlink expected to take about {dl_duration} s, setting mcast timeout to {mcast_timeout_log2}")
+
         with grpc.insecure_channel(f"{args.host}:{args.port}") as channel:
                 stub = fuota_grpc.FuotaServerServiceStub(channel)
 
@@ -33,7 +46,7 @@ def do_deploy(args: argparse.Namespace):
                 # For LoRaWAN 1.0.x the input is 16 bytes of 0x00.
                 # For 1.1.x the first byte is 0x20.
                 mc_root_key = enc.update(bytes([0x20] + [0] * 15)) + enc.finalize()
-                print(f"McRootKey: {binascii.hexlify(mc_root_key)}")
+                #print(f"McRootKey: {binascii.hexlify(mc_root_key)}")
 
                 request = fuota.CreateDeploymentRequest(deployment=
                                 fuota.Deployment(
@@ -42,13 +55,13 @@ def do_deploy(args: argparse.Namespace):
                                         multicast_dr=args.dr,
                                         multicast_frequency=get_dl_freq(args.channel),
                                         multicast_group_id=0,
-                                        multicast_timeout=12, # actual timeout is (2^timeout) seconds
+                                        multicast_timeout=mcast_timeout_log2, # actual timeout is (2^timeout) seconds
                                         multicast_region=fuota.US915,
                                         unicast_timeout=duration_pb2.Duration(seconds=60),
                                         unicast_attempt_count=3,
                                         fragmentation_fragment_size=args.fragment_size,
                                         fragmentation_block_ack_delay=1, # ???
-                                        fragmentation_redundancy=args.fragment_redundancy,
+                                        fragmentation_redundancy=redundancy_frames,
                                         devices=[
                                                 fuota.DeploymentDevice(
                                                         dev_eui=args.eui,
@@ -121,7 +134,7 @@ deploy.add_argument('-f', '--firmware',
 # Defaults below should not need changing
 deploy.add_argument('--dr',
                         type=int,
-                        default=8,
+                        default=12, # Needs to be at least 10 to meet payload size requirements
                         help="Multicast downlink data rate")
 deploy.add_argument('-c', '--channel',
                         type=int,
@@ -133,9 +146,8 @@ deploy.add_argument('-s', '--fragment-size',
                         help="Fragment size")
 deploy.add_argument('-r', '--fragment-redundancy',
                         type=int,
-                        # TODO: should scale with the number of frames to send
-                        default=92, # This is the number of *extra* parity blocks to send!
-                        help="Fragment redundancy")
+                        default=10,
+                        help="Fragment redundancy in percent")
 deploy.set_defaults(func=do_deploy)
 
 
