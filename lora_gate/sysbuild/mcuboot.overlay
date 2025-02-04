@@ -1,0 +1,14 @@
+/* Disable everything unnecessary for boot */
+
+&uart0 {
+        status = "disabled";
+        current-speed = < 9600 >;
+};
+
+&i2c0 {
+        status = "disabled";
+};
+
+&spi2 {
+        status = "disabled";
+};

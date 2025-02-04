@@ -48,7 +48,7 @@ int main(void)
 
 	/* TODO: save address in settings */
 	charger_present = 0;
-	ret = -ENOENT; //init_charger();
+	ret = init_charger();
 	if (ret == 0) {
 		charger_present = 1;
 	} else {
@@ -57,8 +57,8 @@ int main(void)
 
 	fuota_run();
 
-	/* Wait for datarate change*/
-	wait_for_datarate(LORAWAN_DR_3);
+	/* Wait for datarate change */
+	wait_for_datarate(LORAWAN_DR_2);
 	report_version();
 
 	lorawan_relay_run();
