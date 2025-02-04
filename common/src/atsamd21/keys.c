@@ -15,7 +15,7 @@ static struct provision_t provisioning = { 0 };
 
 #define STORAGE_ID	FIXED_PARTITION_ID(storage_partition)
 #define STORAGE_SIZE	FIXED_PARTITION_SIZE(storage_partition)
-#define FLASH_BLOCK_SIZE	4096
+#define FLASH_BLOCK_SIZE	1024
 
 int generate_keys(void) {
 	const struct flash_area *storage_area;
@@ -24,7 +24,19 @@ int generate_keys(void) {
 	psa_status_t status = PSA_SUCCESS;
 	psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
 
-	int err = flash_area_open(STORAGE_ID, &storage_area);
+	/* Unconditionally print device ID. We could check to see if
+	 * the flash is empty, but we can't tell if the decrypt fails;
+	 * if it does we'll simply get garbage out.
+	 */
+	uint8_t dev_id[8];
+	int err = hwinfo_get_device_id(dev_id, sizeof(dev_id));
+	if (err < 0) {
+		LOG_ERR("hwinfo failed: %d", err);
+	} else {
+		LOG_HEXDUMP_INF(dev_id, sizeof(dev_id), "Device ID");
+	}
+
+	err = flash_area_open(STORAGE_ID, &storage_area);
 	if (err != 0) {
 		LOG_ERR("Failed to open flash area: %d", err);
 		return err;

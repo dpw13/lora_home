@@ -2,6 +2,7 @@ Remotes (no sysbuild/mcuboot for now):
 $ west build -b adafruit_feather_m0_lora lora_ctrl
 
 Flashing: bossa or bossac, offset 0x2000
+Flash <devid>.unsecure.bin to end of storage partition at 3fc00
 
 Gate controller:
 $ west build -b xiao_esp32s3/esp32s3/procpu --sysbuild lora_gate
@@ -11,8 +12,10 @@ $ west build -b xiao_esp32s3/esp32s3/procpu --sysbuild lora_garage
 
 Provisioning:
 $ ./provision.py -v "Seeed" -m "XIAO ESP32-S3" -i "e8 06 90 9e 8e 4c c9 3f"
--> generates e806909e8e4cc93f.fuse.bin (fuse contents)
+-> generates
+       e806909e8e4cc93f.fuse.bin (fused root key)
    and e806909e8e4cc93f.crypt.bin (encrypted flash contents)
+   and e806909e8e4cc93f.unsecure.bin (encrypted flash contents with embedded derived key)
 
 Burn root key to KEY5:
 $ modules/hal/espressif/tools/esptool_py/espefuse.py burn_key --no-read-protect --no-write-protect --show-sensitive-info BLOCK_KEY5 ~/git/key_provision/e806909e8e4cc93f.fuse.bin HMAC_UP --port /dev/ttyACM0

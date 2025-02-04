@@ -1,5 +1,4 @@
 #include <zephyr/kernel.h>
-#include <zephyr/drivers/hwinfo.h>
 #include <zephyr/logging/log.h>
 
 #include <LoRaMac.h>
