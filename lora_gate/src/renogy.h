@@ -6,7 +6,7 @@
 int init_charger(void);
 
 int charger_get_system(struct renogy_sys_t *buf);
-int charger_get_cur_stats(struct renogy_dyn_stat_t *buf);
+int charger_get_cur_stats(struct renogy_dyn_statistics_t *buf);
 int charger_get_daily_stats(struct renogy_dyn_daily_t *buf);
 int charger_get_hist_stats(struct renogy_dyn_hist_t *buf);
 int charger_get_state(struct renogy_dyn_status_t *buf);

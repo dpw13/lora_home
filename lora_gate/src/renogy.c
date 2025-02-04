@@ -44,8 +44,8 @@ int charger_get_system(struct renogy_sys_t *buf) {
         return modbus_read_holding_regs(client_iface, client_addr, REN_SYS_CHARGE_RATING, (uint16_t *)buf, sizeof(struct renogy_sys_t)/2);
 }
 
-int charger_get_cur_stats(struct renogy_dyn_stat_t *buf) {
-        return modbus_read_holding_regs(client_iface, client_addr, REN_DYN_STAT_SOC, (uint16_t *)buf, sizeof(struct renogy_dyn_stat_t)/2);
+int charger_get_cur_stats(struct renogy_dyn_statistics_t *buf) {
+        return modbus_read_holding_regs(client_iface, client_addr, REN_DYN_STAT_SOC, (uint16_t *)buf, sizeof(struct renogy_dyn_statistics_t)/2);
 }
 
 int charger_get_daily_stats(struct renogy_dyn_daily_t *buf) {

@@ -28,7 +28,7 @@ struct renogy_sys_t {
 
 #define REN_DYN_STAT_SOC                0x100
 
-struct renogy_dyn_stat_t {
+struct renogy_dyn_statistics_t {
         uint16_t soc_pct;
         uint16_t bat_dV;
         uint16_t charge_cA;

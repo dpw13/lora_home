@@ -19,7 +19,12 @@ function decodeUplink(input) {
                 case 0x13:
                         ret.data = decodeRenogyStatus(input.bytes)
                         break
+                case 0x20:
+                        ret.data = decodeBootStatus(input.bytes)
+                        break;
                 case 0x80:
+                case 0x81:
+                case 0x82:
                         /* Outputs */
                         ret.data = { state: input.bytes[0] }
                 default:
@@ -54,6 +59,13 @@ function getVersion(index, bytes) {
         var minor = bytes[index]
         var fix = bytes[index]
         return major + "." + minor + "." + fix
+}
+
+function decodeBootStatus(bytes) {
+        return {
+                reset_reason: getU32(0, bytes),
+                version: getString(4, 32, bytes),
+        }
 }
 
 function decodeRenogySystemConfig(bytes) {
@@ -167,7 +179,7 @@ function decodeRenogyChargingState(bytes) {
 }
 
 function decodeRenogyStatus(bytes) {
-        // renogy_dyn_stat_t
+        // renogy_dyn_statistics_t
         return {
                 soc_pct: getU16(0, bytes),
                 battery_V: getU16(2, bytes) / 10.0,

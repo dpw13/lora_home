@@ -59,6 +59,7 @@ int main(void)
 
 	/* Wait for datarate change*/
 	wait_for_datarate(LORAWAN_DR_3);
+	report_version();
 
 	lorawan_relay_run();
 

@@ -53,14 +53,22 @@ struct lora_remote_downlink_t {
 /**
  * LoRaWAN port IDs
  */
-#define LORAWAN_PORT_BOOT_STATUS	0x10
+
+/* Charger messages. See renogy_internal.h */
+#define LORAWAN_PORT_CHARGER_SYS	0x10
+#define LORAWAN_PORT_CHARGER_BAT_PARAM	0x11
+#define LORAWAN_PORT_CHARGER_DYN_STATUS	0x12
+#define LORAWAN_PORT_CHARGER_STATS	0x13
+
+/* System info */
+#define LORAWAN_PORT_BOOT_STATUS	0x20
 
 struct lorawan_boot_status_uplink_t {
 	uint32_t reset_reason;
 	uint8_t version[32];
 };
 
-#define LORAWAN_PORT_UPDATE_STATUS	0x11
+#define LORAWAN_PORT_UPDATE_STATUS	0x21
 
 struct lorawan_update_status_uplink_t {
 	uint16_t received;

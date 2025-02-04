@@ -10,9 +10,13 @@
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/reboot.h>
+#include <zephyr/drivers/hwinfo.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/lorawan/lorawan.h>
+#include <services/lorawan_services.h>
+#include <app_version.h>
 #include "../lorawan/eui.h"
+#include "app_protocol.h"
 
 LOG_MODULE_REGISTER(lorawan_fuota, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
@@ -50,6 +54,17 @@ static void fuota_finished(void)
 	/* Wait for log to flush */
 	k_msleep(100);
 	sys_reboot(SYS_REBOOT_WARM);
+}
+
+static const char app_version[] = STRINGIFY(APP_BUILD_VERSION);
+
+void report_version(void)
+{
+	struct lorawan_boot_status_uplink_t msg;
+	strncpy(&msg.version[0], app_version, sizeof(msg.version));
+	hwinfo_get_reset_cause(&msg.reset_reason);
+
+	lorawan_services_schedule_uplink(LORAWAN_PORT_BOOT_STATUS, (uint8_t *)&msg, sizeof(struct lorawan_boot_status_uplink_t), 500);
 }
 
 int fuota_run(void) {
