@@ -28,7 +28,7 @@ static const struct device *lora_dev = DEVICE_DT_GET(DT_ALIAS(lora0));
 static const struct lora_modem_config lora_tx_cfg = {
 	/* Channel 7 in US915 */
 	.frequency = 903700000,
-	/* DR_0 corresponds to SF_10 on a 125 kHz channel for region US915 */
+	/* DR_0 (uplink) corresponds to SF_10 on a 125 kHz channel for region US915 */
 	.bandwidth = BW_125_KHZ,
 	.datarate = SF_10,
 	.coding_rate = CR_4_5,
@@ -39,14 +39,15 @@ static const struct lora_modem_config lora_tx_cfg = {
 };
 
 static const struct lora_modem_config lora_rx_cfg = {
-	/* Channel 7 in US915 */
+	/* Channel 64 in US915 */
 	.frequency = 923300000,
-	/* DR_0 corresponds to SF_10 on a 125 kHz channel for region US915 */
+	/* DR_8 (downlink) corresponds to SF_12 on a 500 kHz channel for region US915 */
 	.bandwidth = BW_500_KHZ,
-	.datarate = SF_10,
+	.datarate = SF_12,
 	.coding_rate = CR_4_5,
 	.public_network = 1, // call it public for now to match LoRaWAN config
 	.preamble_len = 8,
+	.iq_inverted = true, // Seems to be set by default for downlinks
 };
 
 int lora_init(void) {

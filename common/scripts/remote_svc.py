@@ -106,9 +106,10 @@ def on_message(client, userdata, msg):
             fi.tx_info.power = -1
             # SIGH. All downlink datarates (defined in chirpstack/lrwn/src/region/us915.rs
             # and NOT in a .toml) are in the 500 kHz channel and all are CR 4/5. SF ranges
-            # from 12 (slowest symbol rate) down to 7 (fastest symbol rate).
+            # from 12 (slowest symbol rate) down to 7 (fastest symbol rate). These settings
+            # should (must?) match the downlink config on the device.
             fi.tx_info.modulation.lora.bandwidth = 500000
-            fi.tx_info.modulation.lora.spreading_factor = 10
+            fi.tx_info.modulation.lora.spreading_factor = 12
             fi.tx_info.modulation.lora.code_rate = gateway.CodeRate.CR_4_5
             # All downlinks also appear to have this set
             fi.tx_info.modulation.lora.polarization_inversion = True
