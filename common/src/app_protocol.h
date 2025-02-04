@@ -53,6 +53,21 @@ struct lora_remote_downlink_t {
 /**
  * LoRaWAN port IDs
  */
+#define LORAWAN_PORT_BOOT_STATUS	0x10
+
+struct lorawan_boot_status_uplink_t {
+	uint32_t reset_reason;
+	uint8_t version[32];
+};
+
+#define LORAWAN_PORT_UPDATE_STATUS	0x11
+
+struct lorawan_update_status_uplink_t {
+	uint16_t received;
+	uint16_t lost;
+	uint16_t expected;
+};
+
 #define LORAWAN_PORT_GATE_RELAY		0x80
 #define LORAWAN_PORT_GARAGE0_RELAY	0x81
 #define LORAWAN_PORT_GARAGE1_RELAY	0x82

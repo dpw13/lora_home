@@ -19,15 +19,6 @@
 LOG_MODULE_REGISTER(main, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
 static const struct device *lora_dev = DEVICE_DT_GET(DT_ALIAS(lora0));
-static const struct lora_modem_config lora_cfg = {
-	.frequency = 915000000,
-	.bandwidth = BW_125_KHZ,
-	.datarate = SF_6,
-	.coding_rate = CR_4_8,
-	.public_network = 0,
-	.preamble_len = 100,
-	.tx_power = 20,
-};
 
 int lora_init(void) {
 	if (!device_is_ready(lora_dev)) {
@@ -50,16 +41,11 @@ int main(void)
 		goto err;
 	}
 
-	ret = lora_config(lora_dev, &lora_cfg);
-	if (ret != 0) {
-		LOG_ERR("Failed to configure LoRa");
-		goto err;
-	}
-
 	fuota_run();
 
 	/* Wait for datarate change*/
-	k_msleep(5000);
+	wait_for_datarate(LORAWAN_DR_3);
+
 	lorawan_relay_run();
 
 	while (1) {

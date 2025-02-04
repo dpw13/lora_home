@@ -18,7 +18,11 @@ LOG_MODULE_REGISTER(lorawan_fuota, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
 #define DELAY K_SECONDS(180)
 
-char data[] = {'a', 'b', 'c'};
+static enum lorawan_datarate dr_wait;
+static enum lorawan_datarate dr_current;
+
+/* Initialize semaphore for waiting for datarate increase */
+K_SEM_DEFINE(dr_sem, 1, 1);
 
 static void datarate_changed(enum lorawan_datarate dr)
 {
@@ -26,11 +30,25 @@ static void datarate_changed(enum lorawan_datarate dr)
 
 	lorawan_get_payload_sizes(&unused, &max_size);
 	LOG_INF("New Datarate: DR %d, Max Payload %d", dr, max_size);
+	dr_current = dr;
+	if (dr >= dr_wait) {
+		k_sem_give(&dr_sem);
+	}
+}
+
+void wait_for_datarate(enum lorawan_datarate dr)
+{
+	if (dr > dr_current) {
+		dr_wait = dr;
+		k_sem_take(&dr_sem, K_FOREVER);
+	}
 }
 
 static void fuota_finished(void)
 {
 	LOG_INF("FUOTA finished. Resetting device to apply firmware upgrade.");
+	/* Wait for log to flush */
+	k_msleep(100);
 	sys_reboot(SYS_REBOOT_WARM);
 }
 
