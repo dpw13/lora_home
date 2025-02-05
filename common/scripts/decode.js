@@ -27,6 +27,10 @@ function decodeUplink(input) {
                 case 0x82:
                         /* Outputs */
                         ret.data = { state: input.bytes[0] }
+                        break;
+                case 201:
+                        ret.data = decodeFragResponse(input.bytes)
+                        break;
                 default:
                         break
                 }
@@ -65,6 +69,43 @@ function decodeBootStatus(bytes) {
         return {
                 reset_reason: getU32(0, bytes),
                 version: getString(4, 32, bytes),
+        }
+}
+
+function decodeFragResponse(bytes) {
+        /* Response type is first byte */
+        switch (bytes[0]) {
+                case 0x00:
+                        return {
+                                type: "pkg_version",
+                                pkg_id: bytes[1],
+                                frag_transport_version: bytes[2],
+                        }
+                case 0x01:
+                        var nb_frag_rx = getU16(1, bytes)
+                        var idx = nb_frag_rx >> 6
+                        nb_frag_rx &= 0xCFFF
+                        return {
+                                type: "frag_status",
+                                nb_frag_received: nb_frag_rx,
+                                index: idx,
+                                nb_frag_missing: bytes[3],
+                                status: bytes[4],
+                        }
+                case 0x02:
+                        return {
+                                type: "session_setup",
+                                status: bytes[1],
+                        }
+                case 0x03:
+                        return {
+                                type: "session_delete",
+                                status: bytes[1],
+                        }
+                default:
+                        return {
+                                type: "unknown"
+                        }
         }
 }
 
