@@ -56,7 +56,7 @@ static void fuota_finished(void)
 	sys_reboot(SYS_REBOOT_WARM);
 }
 
-static const char app_version[] = (APP_VERSION_EXTENDED_STRING STRINGIFY(APP_BUILD_VERSION));
+static const char app_version[] = (APP_VERSION_EXTENDED_STRING "-" STRINGIFY(APP_BUILD_VERSION));
 
 void report_version(void)
 {

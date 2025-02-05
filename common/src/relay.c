@@ -282,7 +282,6 @@ static void uplink_work_handler(struct k_work *work) {
 	for (i=0; i < ARRAY_SIZE(relays); i++) {
 		lorawan_services_schedule_uplink(CONFIG_LORAWAN_PORT_RELAY_BASE + i, (uint8_t *)&msg, sizeof(struct lorawan_entr_uplink_t), 500);
 	}
-	lorawan_services_reschedule_work(&ctx->entr_state_work, K_MSEC(ctx->period));
 	k_sem_give(&ctx_sem);
 }
 
