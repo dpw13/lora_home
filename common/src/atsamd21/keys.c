@@ -15,7 +15,7 @@ static struct provision_t provisioning = { 0 };
 
 #define STORAGE_ID	FIXED_PARTITION_ID(storage_partition)
 #define STORAGE_SIZE	FIXED_PARTITION_SIZE(storage_partition)
-#define FLASH_BLOCK_SIZE	1024
+#define FLASH_BLOCK_SIZE	256
 
 int generate_keys(void) {
 	const struct flash_area *storage_area;
@@ -43,6 +43,7 @@ int generate_keys(void) {
 	}
 
 	/* Encrypted block stored at end of flash */
+	LOG_DBG("Reading flash from %lx", storage_area->fa_off + STORAGE_SIZE - FLASH_BLOCK_SIZE);
 	err = flash_area_read(storage_area, STORAGE_SIZE - FLASH_BLOCK_SIZE, &block, sizeof(struct crypt_block_t));
 	if (err != 0) {
 		LOG_ERR("Failed to read flash area: %d", err);
@@ -66,6 +67,7 @@ int generate_keys(void) {
 		LOG_ERR("Failed to import key: %d", status);
 		goto out;
 	}
+	LOG_HEXDUMP_DBG(&block.entropy[0], 32, "Derived key");
 
 	size_t bytes_decrypted;
 	status = psa_cipher_decrypt(key_id, PSA_ALG_ECB_NO_PADDING,

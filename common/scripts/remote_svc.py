@@ -29,21 +29,38 @@ def on_connect(client, userdata, flags, reason_code, properties):
     client.subscribe("application/#")
     #client.subscribe("us915_0/gateway/#")
 
+CMD_TOGGLE = 1
+CMD_CLOSE = 2
+CMD_MOM_OPEN = 3
+CMD_HOLD_OPEN = 4
+
+COMMANDS = {
+    # Gate
+    0: (128, CMD_MOM_OPEN),
+    # Garage 1
+    1: (129, CMD_TOGGLE),
+    # Garage 2
+    2: (130, CMD_TOGGLE),
+}
+
 def on_remote_button(client, idx: int):
-    if (idx == 0):
-        # Gate
-        if (128 in devices):
-            rsp = struct.Struct("L")
-            # Relay open time in ms
-            msg = rsp.pack(10000)
-            (topic, eui) = devices[128]
+    if (idx in COMMANDS):
+        port, cmd = COMMANDS[idx]
+        print(f"port {port} cmd {cmd}")
+        rsp = struct.Struct("B")
+        msg = rsp.pack(cmd)
+        if (port in devices):
+            (topic, eui) = devices[port]
+            print(f"Sending cmd {cmd} to {eui} port {port}")
             msg = {
                 "devEui": eui,
                 "confirmed": False,
-                "fPort": 128,
+                "fPort": port,
                 "data": base64.b64encode(msg).decode()
             }
             client.publish(f"{topic}/command/down", json.dumps(msg))
+        else:
+            print(f"Destination eui for port {port} is unknown")
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
@@ -58,10 +75,10 @@ def on_message(client, userdata, msg):
             if (port not in devices or devices[port] != data):
                 print(f"Registering port {port} to {data}")
             devices[port] = data
-    elif (path[1] == "gateway" and path[-1] == "down"):
-        downlink = gateway.DownlinkFrame()
-        downlink.ParseFromString(msg.payload)
-        print(f"{msg.topic}: {downlink}")
+    #elif (path[1] == "gateway" and path[-1] == "down"):
+    #    downlink = gateway.DownlinkFrame()
+    #    downlink.ParseFromString(msg.payload)
+    #    print(f"{msg.topic}: {downlink}")
     elif (path[1] == "gateway" and path[-1] == "up"):
         uplink = gateway.UplinkFrame()
         uplink.ParseFromString(msg.payload)
@@ -77,14 +94,14 @@ def on_message(client, userdata, msg):
 
         if (uplink.phy_payload[0] == 0xE0):
             print(f"{msg.topic}: phy payload = " + binascii.hexlify(uplink.phy_payload).decode())
-            print(uplink)
+            #print(uplink)
             # proprietary frame, this is us
             rsp = 0
             if (uplink.phy_payload[1] == 0x01):
                 # Remote command
                 s = struct.Struct("HB")
                 (battery, payload) = s.unpack_from(uplink.phy_payload, 2)
-                print(f"Battery {battery:x} button idx: {payload}")
+                print(f"Battery 0x{battery:04x} button idx: {payload}")
                 # Remote press handlers
                 on_remote_button(client, payload)
                 # Acknowledge
@@ -115,7 +132,7 @@ def on_message(client, userdata, msg):
             fi.tx_info.modulation.lora.polarization_inversion = True
             
             fi.tx_info.timing.delay.delay.seconds = 1
-            print(f"ACK: {ack_dl}")
+            #print(f"ACK: {ack_dl}")
 
             client.publish(ack_topic, ack_dl.SerializeToString())
 

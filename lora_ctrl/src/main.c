@@ -83,9 +83,8 @@ int main(void)
 	uplink.hdr.mhdr = LORA_MHDR_PROPRIETARY;
 	uplink.hdr.type = LORA_PROP_TYPE_REMOTE;
 
-	uint8_t ctr = 0;
 	while (1) {
-		uint8_t btns = button_poll() | ctr;
+		uint8_t btns = button_poll();
 		uint16_t bat = adc_read_battery();
 		uplink.hdr.battery_lvl = bat;
 		LOG_INF("Battery: %04x Btns: %02x", bat, btns);
@@ -116,7 +115,6 @@ int main(void)
 			gpio_pin_set_dt(&led, 0);
 		}
 		k_msleep(500);
-		ctr++;
 	}
 
 	return 0;

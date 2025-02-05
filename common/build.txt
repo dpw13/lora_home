@@ -2,7 +2,7 @@ Remotes (no sysbuild/mcuboot for now):
 $ west build -b adafruit_feather_m0_lora lora_ctrl
 
 Flashing: bossa or bossac, offset 0x2000
-Flash <devid>.unsecure.bin to end of storage partition at 3fc00
+Flash <devid>.unsecure.bin to end of storage partition at 3ff00
 
 Gate controller:
 $ west build -b xiao_esp32s3/esp32s3/procpu --sysbuild lora_gate
