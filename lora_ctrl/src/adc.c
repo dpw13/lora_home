@@ -14,6 +14,9 @@ static const struct adc_dt_spec adc_channels[] = {
 			     DT_SPEC_AND_COMMA)
 };
 
+uint8_t first_sample;
+uint16_t adc_sample(uint16_t chan_id);
+
 int adc_init(void)
 {
 	int err;
@@ -36,6 +39,10 @@ int adc_init(void)
 		}
 	}
 
+	/* First sample is garbage and will return an error */
+	first_sample = 1;
+	adc_sample(0);
+
 	return 0;
 }
 
@@ -56,8 +63,8 @@ uint16_t adc_sample(uint16_t chan_id) {
 	(void)adc_sequence_init_dt(&adc_channels[chan_id], &sequence);
 
 	err = adc_read_dt(&adc_channels[chan_id], &sequence);
-	if (err < 0) {
-		LOG_ERR("Could not read (%d)", err);
+	if (!first_sample && err < 0) {
+		LOG_ERR("Could not read ADC %s chan %d (%d)", adc_channels[chan_id].dev->name, chan_id, err);
 		return 0;
 	}
 

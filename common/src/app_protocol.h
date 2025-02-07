@@ -23,26 +23,15 @@ struct lora_prop_downlink_t {
 	uint8_t type;
 };
 
+
+#define LORA_PROP_TYPE_ACK	0x00
 /* Communication to/from 3-button remote */
 #define LORA_PROP_TYPE_REMOTE	0x01
 
-enum remote_cmd_t {
-	BTN_A_SINGLE = 0x10,	/*< Short single press */
-	BTN_A_DBL,		/*< Short double press */
-	BTN_A_HOLD,		/*< Long press */
-
-	BTN_B_SINGLE = 0x18,
-	BTN_B_DBL,
-	BTN_B_HOLD,
-
-	BTN_C_SINGLE = 0x18,
-	BTN_C_DBL,
-	BTN_C_HOLD,
-};
-
 struct lora_remote_uplink_t {
         struct lora_prop_uplink_t hdr;
-        uint8_t cmd;
+        uint8_t btn;
+        uint8_t action;
 };
 
 struct lora_remote_downlink_t {

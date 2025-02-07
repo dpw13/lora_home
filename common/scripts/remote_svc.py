@@ -43,7 +43,7 @@ COMMANDS = {
     2: (130, CMD_TOGGLE),
 }
 
-def on_remote_button(client, idx: int):
+def on_remote_button(client, idx: int, action: int):
     if (idx in COMMANDS):
         port, cmd = COMMANDS[idx]
         print(f"port {port} cmd {cmd}")
@@ -95,17 +95,18 @@ def on_message(client, userdata, msg):
         if (uplink.phy_payload[0] == 0xE0):
             print(f"{msg.topic}: phy payload = " + binascii.hexlify(uplink.phy_payload).decode())
             #print(uplink)
-            # proprietary frame, this is us
+            # proprietary frame: this is us
             rsp = 0
             if (uplink.phy_payload[1] == 0x01):
                 # Remote command
-                s = struct.Struct("HB")
-                (battery, payload) = s.unpack_from(uplink.phy_payload, 2)
-                print(f"Battery 0x{battery:04x} button idx: {payload}")
+                s = struct.Struct("HBB")
+                (battery, btn, action) = s.unpack_from(uplink.phy_payload, 2)
+                print(f"Battery 0x{battery:04x} button {btn} action {action}")
                 # Remote press handlers
-                on_remote_button(client, payload)
+                on_remote_button(client, btn, action)
                 # Acknowledge
                 rsp = 1
+            print(f"Sending ack {rsp}")
 
             # Send acknowledgement
             # TODO: proprietary ack still not getting received
@@ -116,7 +117,7 @@ def on_message(client, userdata, msg):
 
             fi = ack_dl.items.add()
             fi.phy_payload = ack_msg.pack(0xE0, 0x00, rsp)
-            # Respond using identical parameters to the uplink
+            # Respond relative to the uplink
             fi.tx_info.context = uplink.rx_info.context
             # Shared downlink frequency
             fi.tx_info.frequency = 923300000
@@ -128,7 +129,7 @@ def on_message(client, userdata, msg):
             fi.tx_info.modulation.lora.bandwidth = 500000
             fi.tx_info.modulation.lora.spreading_factor = 12
             fi.tx_info.modulation.lora.code_rate = gateway.CodeRate.CR_4_5
-            # All downlinks also appear to have this set
+            # All downlinks also appear to have this set for RX2 on 923300000
             fi.tx_info.modulation.lora.polarization_inversion = True
             
             fi.tx_info.timing.delay.delay.seconds = 1

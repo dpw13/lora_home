@@ -272,16 +272,14 @@ static void entr_state_work_handler(struct k_work *work) {
 }
 
 static void uplink_work_handler(struct k_work *work) {
-	int i;
 	const struct k_work_delayable *uplink_work = k_work_delayable_from_work(work);
 	struct relay_svc_context *ctx = CONTAINER_OF(uplink_work, struct relay_svc_context, uplink_work);
 	struct lorawan_entr_uplink_t msg = {
 		.state = ctx->entr_state,
 	};
 
-	for (i=0; i < ARRAY_SIZE(relays); i++) {
-		lorawan_services_schedule_uplink(CONFIG_LORAWAN_PORT_RELAY_BASE + i, (uint8_t *)&msg, sizeof(struct lorawan_entr_uplink_t), 500);
-	}
+	lorawan_services_schedule_uplink(ctx->port, (uint8_t *)&msg, sizeof(struct lorawan_entr_uplink_t), 500);
+
 	/* Reschedule periodic uplink */
 	lorawan_services_reschedule_work(&ctx->uplink_work, K_MSEC(ctx->period));
 	k_sem_give(&ctx_sem);
@@ -294,6 +292,7 @@ int lorawan_relay_run(void) {
 		ctx[i].nx_entr_state = DOOR_STATE_CLOSED;
 		ctx[i].entr_transition = 0;
 		ctx[i].relay = &relays[i];
+		ctx[i].port = CONFIG_LORAWAN_PORT_RELAY_BASE + i;
 
 		gpio_pin_configure_dt(&relays[i], GPIO_OUTPUT_LOW);
 		lorawan_register_downlink_callback(&downlink_cb[i]);

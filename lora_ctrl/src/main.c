@@ -19,7 +19,7 @@
 #include "buttons.h"
 
 
-LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 #define LED0_NODE DT_ALIAS(led0)
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
@@ -59,7 +59,67 @@ int lora_init(void) {
         return 0;
 }
 
-struct lora_remote_uplink_t uplink;
+void leds_off_handler(struct k_work *work) {
+	for (int i=0; i < 6; i++) {
+		pwm_set2(i, 0);
+	}
+}
+
+K_WORK_DELAYABLE_DEFINE(leds_off, leds_off_handler);
+
+int button_action(uint8_t i, uint8_t action) {
+	int ret;
+	int16_t rssi;
+	int8_t snr;
+
+	/* Set MHDR to proprietary, LoRa major version 1 */
+	struct lora_remote_uplink_t uplink;
+	uplink.hdr.mhdr = LORA_MHDR_PROPRIETARY;
+	uplink.hdr.type = LORA_PROP_TYPE_REMOTE;
+
+	uplink.hdr.battery_lvl = adc_read_battery();
+	LOG_INF("Battery: %04x Btn: %d", uplink.hdr.battery_lvl, i);
+
+	pwm_set2(GREEN_CHAN(i), 5000000);
+	pwm_set2(RED_CHAN(i), 0);
+
+	uplink.btn = i;
+	uplink.action = action;
+	ret = lora_config(lora_dev, &lora_tx_cfg);
+	if (ret < 0) {
+		LOG_ERR("Failed to configure TX: %d", ret);
+		return ret;
+	}
+	ret = lora_send(lora_dev, (uint8_t *)&uplink, sizeof(uplink));
+	if (ret < 0) {
+		LOG_ERR("Failed to transmit: %d", ret);
+		return ret;
+	}
+	pwm_set2(GREEN_CHAN(i), 0);
+
+	ret = lora_config(lora_dev, &lora_rx_cfg);
+	if (ret < 0) {
+		LOG_ERR("Failed to configure RX: %d", ret);
+		return ret;
+	}
+
+	/* Receive window is tx time + 1s +/- 250 ms */
+	k_msleep(750);
+
+	struct lora_remote_downlink_t downlink;
+	ret = lora_recv(lora_dev, (uint8_t *)&downlink, sizeof(downlink), K_MSEC(500), &rssi, &snr);
+	if (ret < 0) {
+		LOG_ERR("Failed to receive: %d", ret);
+		pwm_set2(RED_CHAN(i), 5000000);
+	} else if (ret > 0) {
+		pwm_set2(GREEN_CHAN(i), 5000000);
+		LOG_DBG("Received response type %02x: %02x", downlink.hdr.type, downlink.payload);
+	}
+	/* Schedule LEDs off regardless of what we set */
+	k_work_schedule(&leds_off, K_SECONDS(2));
+
+	return 0;
+}
 
 int main(void)
 {
@@ -74,48 +134,26 @@ int main(void)
 		LOG_ERR("Failed to configure LED pin");
 	}
 
+	ret = gpio_pin_set_dt(&led, 0);
+	if (ret < 0) {
+		LOG_ERR("Failed to turn off primary LED");
+	}
+
 	ret = adc_init();
 	ret = pwm_init();
 	ret = button_init();
 	ret = lora_init();
 
-	/* Set MHDR to proprietary, LoRa major version 1 */
-	uplink.hdr.mhdr = LORA_MHDR_PROPRIETARY;
-	uplink.hdr.type = LORA_PROP_TYPE_REMOTE;
-
 	while (1) {
-		uint8_t btns = button_poll();
-		uint16_t bat = adc_read_battery();
-		uplink.hdr.battery_lvl = bat;
-		LOG_INF("Battery: %04x Btns: %02x", bat, btns);
-
-		pwm_set2(0, bat);
-
-		if (btns == 0x07) {
-			fuota_run();
-		} else {
-			gpio_pin_set_dt(&led, 1);
-			for (int i=0; i < 3; i++) {
-				if (btns & 0x01) {
-					int16_t rssi;
-					int8_t snr;
-
-					uplink.cmd = i;
-					ret = lora_config(lora_dev, &lora_tx_cfg);
-					lora_send(lora_dev, (uint8_t *)&uplink, sizeof(uplink));
-
-					ret = lora_config(lora_dev, &lora_rx_cfg);
-					ret = lora_recv(lora_dev, (uint8_t *)&uplink, sizeof(uplink), K_MSEC(1000), &rssi, &snr);
-					if (ret > 0) {
-						LOG_HEXDUMP_INF(&uplink, sizeof(uplink), "Received response:");
-					}
-				}
-				btns >>= 1;
-			}
-			gpio_pin_set_dt(&led, 0);
-		}
-		k_msleep(500);
+		/* For some unknown reason, the LoRa functions return an error
+		 * (tx timeout) if lora_send() is not sent from the main thread.
+		 */
+		struct action_t act;
+		k_msgq_get(&action_queue, &act, K_FOREVER);
+		button_action(act.btn_id, act.action);
 	}
+
+	//fuota_run();
 
 	return 0;
 }

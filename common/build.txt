@@ -22,3 +22,8 @@ $ modules/hal/espressif/tools/esptool_py/espefuse.py burn_key --no-read-protect 
 
 Flash encrypted sector:
 $ modules/hal/espressif/tools/esptool_py/esptool.py -p /dev/ttyACM0 write_flash 0x7DF000 ../key_provision/e806909e8e4cc93f.crypt.bin
+
+Update over-the-air:
+$ common/scripts/fuota.py deploy -e <eui> -k <app_key> -f build/<app>/zephyr/zephyr.signed.bin
+Status:
+$ common/scripts/fuota.py status -e <eui> -i <deploy_id>

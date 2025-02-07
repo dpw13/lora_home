@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+#define GREEN_CHAN(btn) (2*btn+0)
+#define RED_CHAN(btn)   (2*btn+1)
+
 int pwm_init(void);
 int pwm_set2(uint16_t channel, uint32_t pulse_width);
 
