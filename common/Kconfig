@@ -21,7 +21,7 @@ config ENTRANCE_HAS_AUTO_CLOSE
 
 config ENTRANCE_AUTO_CLOSE_INTERVAL
 	int "Entrance auto-close interval"
-	depends on ENTRACE_HAS_AUTO_CLOSE
+	depends on ENTRANCE_HAS_AUTO_CLOSE
 	help
 	  The entrance being controlled automatically closes after
 	  the specified number of seconds.

@@ -36,16 +36,23 @@ CMD_HOLD_OPEN = 4
 
 COMMANDS = {
     # Gate
-    0: (128, CMD_MOM_OPEN),
+    0: (128, CMD_MOM_OPEN, {
+        0x2: CMD_MOM_OPEN, # single short
+        0x3: CMD_HOLD_OPEN, # single long
+        0xa: CMD_CLOSE, # double short
+    }),
     # Garage 1
-    1: (129, CMD_TOGGLE),
+    1: (129, CMD_TOGGLE, {}),
     # Garage 2
-    2: (130, CMD_TOGGLE),
+    2: (130, CMD_TOGGLE, {}),
 }
 
 def on_remote_button(client, idx: int, action: int):
     if (idx in COMMANDS):
-        port, cmd = COMMANDS[idx]
+        port, cmd, action_map = COMMANDS[idx]
+        if (action in action_map):
+            cmd = action_map[action]
+
         print(f"port {port} cmd {cmd}")
         rsp = struct.Struct("B")
         msg = rsp.pack(cmd)
@@ -58,6 +65,7 @@ def on_remote_button(client, idx: int, action: int):
                 "fPort": port,
                 "data": base64.b64encode(msg).decode()
             }
+            print(msg)
             client.publish(f"{topic}/command/down", json.dumps(msg))
         else:
             print(f"Destination eui for port {port} is unknown")
@@ -109,7 +117,6 @@ def on_message(client, userdata, msg):
             print(f"Sending ack {rsp}")
 
             # Send acknowledgement
-            # TODO: proprietary ack still not getting received
             ack_topic = "/".join(path[:-2]) + "/command/down"
             ack_dl = gateway.DownlinkFrame()
             ack_dl.gateway_id = path[2]

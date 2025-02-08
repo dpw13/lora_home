@@ -237,9 +237,11 @@ static void entr_state_work_handler(struct k_work *work) {
 			switch (ctx->entr_state) {
 				case DOOR_STATE_CLOSED:
 					nx_state = DOOR_STATE_HOLD_OPEN;
+					break;
 				case DOOR_STATE_MOM_OPEN:
 				case DOOR_STATE_HOLD_OPEN:
 					nx_state = DOOR_STATE_CLOSED;
+					break;
 				default:
 					LOG_WRN("Unexpected movement origin state %d", ctx->entr_state);
 			}
@@ -253,6 +255,8 @@ static void entr_state_work_handler(struct k_work *work) {
 			break;
 		default:
 			/* Don't generate new pending transitions for any other cases */
+			nx_state = ctx->nx_entr_state;
+			break;
 	}
 	ctx->entr_state = ctx->nx_entr_state;
 	ctx->entr_transition = pending; // Zero if no new pending transitions

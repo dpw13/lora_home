@@ -20,11 +20,17 @@ LOG_MODULE_REGISTER(main, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
 
 static const struct device *lora_dev = DEVICE_DT_GET(DT_ALIAS(lora0));
 
+static uint8_t battery_cb(void) {
+	return 0; /* A value of 0 indicates external power */
+}
+
 int lora_init(void) {
 	if (!device_is_ready(lora_dev)) {
 		LOG_ERR("%s: device not ready.", lora_dev->name);
 		return -ENODEV;
 	}
+
+	lorawan_register_battery_level_callback(battery_cb);
 
         return 0;
 }
