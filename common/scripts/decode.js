@@ -28,6 +28,9 @@ function decodeUplink(input) {
                         /* Outputs */
                         ret.data = { state: input.bytes[0] }
                         break;
+                case 200:
+                        ret.data = decodeMCastResponse(input.bytes)
+                        break;
                 case 201:
                         ret.data = decodeFragResponse(input.bytes)
                         break;
@@ -69,6 +72,36 @@ function decodeBootStatus(bytes) {
         return {
                 reset_reason: getU32(0, bytes),
                 version: getString(4, 32, bytes),
+        }
+}
+
+function decodeMCastResponse(bytes) {
+        /* Response type is first byte */
+        switch (bytes[0]) {
+                case 0x00:
+                        return {
+                                type: "pkg_version",
+                                pkg_id: bytes[1],
+                                frag_transport_version: bytes[2],
+                        }
+                case 0x02:
+                        return {
+                                type: "mcast_setup",
+                                mcast_id: (bytes[1] & 0x03),
+                                err: (bytes[1] >> 2),
+                        }
+                case 0x03:
+                        return {
+                                type: "mcast_delete",
+                                mcast_id: (bytes[1] & 0x03),
+                                err: (bytes[1] >> 2),
+                        }
+                case 0x04:
+                        return {
+                                type: "mcast_class_c",
+                                mcast_status: (bytes[1] & 0x1F),
+                                err: (bytes[1] >> 5),
+                        }
         }
 }
 

@@ -57,7 +57,7 @@ def do_deploy(args: argparse.Namespace):
                                         multicast_group_id=0,
                                         multicast_timeout=mcast_timeout_log2, # actual timeout is (2^timeout) seconds
                                         multicast_region=fuota.US915,
-                                        unicast_timeout=duration_pb2.Duration(seconds=60),
+                                        unicast_timeout=duration_pb2.Duration(seconds=args.timeout),
                                         unicast_attempt_count=3,
                                         fragmentation_fragment_size=args.fragment_size,
                                         fragmentation_block_ack_delay=1, # ???
@@ -118,9 +118,10 @@ subparsers = parser.add_subparsers(
                         help='subcommand help')
 
 deploy = subparsers.add_parser('deploy', help='Create new deployment')
-deploy.add_argument('-a', '--app-id',
-                        default="bd555621-d30a-4fcd-b1b8-c870be7075b7",
-                        help="Application UUID")
+deploy.add_argument('-t', '--timeout',
+                        type=int,
+                        default=60,
+                        help="Unicast timeout. Set to update interval of device")
 deploy.add_argument('-e', '--eui',
                         required=True,
                         help="Device EUI as a hex string without spaces")
@@ -130,6 +131,9 @@ deploy.add_argument('-k', '--app-key',
 deploy.add_argument('-f', '--firmware',
                         required=True,
                         help="Path to the new firmware")
+deploy.add_argument('-a', '--app-id',
+                        default="bd555621-d30a-4fcd-b1b8-c870be7075b7",
+                        help="Application UUID (optional)")
 
 # Defaults below should not need changing
 deploy.add_argument('--dr',

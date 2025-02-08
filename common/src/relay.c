@@ -304,6 +304,8 @@ int lorawan_relay_run(void) {
 		/* Send first uplink immediately */
 		lorawan_services_reschedule_work(&ctx[i].uplink_work, K_NO_WAIT);
 	}
+	/* Switch to class C for lower-latency relay response */
+	lorawan_services_class_c_start();
 
         return 0;
 }
