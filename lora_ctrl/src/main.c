@@ -72,6 +72,8 @@ int button_action(uint8_t i, uint8_t action) {
 	int16_t rssi;
 	int8_t snr;
 
+	pwm_set_behavior(&beh_colors);
+
 	/* Set MHDR to proprietary, LoRa major version 1 */
 	struct lora_remote_uplink_t uplink;
 	uplink.hdr.mhdr = LORA_MHDR_PROPRIETARY;
@@ -79,9 +81,6 @@ int button_action(uint8_t i, uint8_t action) {
 
 	uplink.hdr.battery_lvl = adc_read_battery();
 	LOG_INF("Battery: %04x Btn: %d", uplink.hdr.battery_lvl, i);
-
-	pwm_set2(GREEN_CHAN(i), 5000000);
-	pwm_set2(RED_CHAN(i), 0);
 
 	uplink.btn = i;
 	uplink.action = action;
@@ -95,7 +94,6 @@ int button_action(uint8_t i, uint8_t action) {
 		LOG_ERR("Failed to transmit: %d", ret);
 		return ret;
 	}
-	pwm_set2(GREEN_CHAN(i), 0);
 
 	ret = lora_config(lora_dev, &lora_rx_cfg);
 	if (ret < 0) {
@@ -108,6 +106,8 @@ int button_action(uint8_t i, uint8_t action) {
 
 	struct lora_remote_downlink_t downlink;
 	ret = lora_recv(lora_dev, (uint8_t *)&downlink, sizeof(downlink), K_MSEC(500), &rssi, &snr);
+	pwm_behavior_off();
+	leds_off_handler(NULL);
 	if (ret < 0) {
 		LOG_ERR("Failed to receive: %d", ret);
 		pwm_set2(RED_CHAN(i), 5000000);
@@ -143,6 +143,8 @@ int main(void)
 	ret = pwm_init();
 	ret = button_init();
 	ret = lora_init();
+
+	LOG_INF("Running");
 
 	while (1) {
 		/* For some unknown reason, the LoRa functions return an error
