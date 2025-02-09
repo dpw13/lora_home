@@ -28,29 +28,29 @@
 		compatible = "pwm-leds";
 
 		pwm_led2g: pwm_led_2g {
-			pwms = <&tcc1 0 PWM_MSEC(5)>;
+			pwms = <&tcc1 1 PWM_MSEC(5)>;
 			label = "PWM 0G";
 		};
 		pwm_led2a: pwm_led_2a {
-			pwms = <&tcc1 1 PWM_MSEC(5)>;
+			pwms = <&tcc1 0 PWM_MSEC(5)>;
 			label = "PWM 0A";
 		};
 
 		pwm_led1g: pwm_led_1g {
-			pwms = <&tcc0 2 PWM_MSEC(5)>;
+			pwms = <&tcc0 3 PWM_MSEC(5)>;
 			label = "PWM 1G";
 		};
 		pwm_led1a: pwm_led_1a {
-			pwms = <&tcc0 3 PWM_MSEC(5)>;
+			pwms = <&tcc0 2 PWM_MSEC(5)>;
 			label = "PWM 1A";
 		};
 
 		pwm_led0g: pwm_led_0g {
-			pwms = <&tcc0 0 PWM_MSEC(5)>;
+			pwms = <&tcc0 1 PWM_MSEC(5)>;
 			label = "PWM 2G";
 		};
 		pwm_led0a: pwm_led_0a {
-			pwms = <&tcc0 1 PWM_MSEC(5)>;
+			pwms = <&tcc0 0 PWM_MSEC(5)>;
 			label = "PWM 2A";
 		};
 	};

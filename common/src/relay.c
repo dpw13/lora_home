@@ -225,11 +225,13 @@ static void entr_state_work_handler(struct k_work *work) {
 	const struct k_work_delayable *entr_state_work = k_work_delayable_from_work(work);
 	struct relay_svc_context *ctx = CONTAINER_OF(entr_state_work, struct relay_svc_context, entr_state_work);
 	uint64_t pending = 0;
-	uint8_t nx_state;
+	/* Default is to not create any further transitions */
+	uint8_t nx_state = ctx->nx_entr_state;;
 
 	k_sem_take(&ctx_sem, K_FOREVER);
 	int64_t now = k_uptime_ticks();
 	/* Process timed state transitions */
+
 	switch (ctx->nx_entr_state) {
 		case DOOR_STATE_MOVING:
 			pending = now + MOVEMENT_TICKS;
@@ -255,7 +257,6 @@ static void entr_state_work_handler(struct k_work *work) {
 			break;
 		default:
 			/* Don't generate new pending transitions for any other cases */
-			nx_state = ctx->nx_entr_state;
 			break;
 	}
 	ctx->entr_state = ctx->nx_entr_state;

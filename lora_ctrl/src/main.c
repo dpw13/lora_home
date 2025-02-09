@@ -67,6 +67,13 @@ void leds_off_handler(struct k_work *work) {
 
 K_WORK_DELAYABLE_DEFINE(leds_off, leds_off_handler);
 
+void on_error(uint8_t i) {
+	pwm_behavior_off();
+	leds_off_handler(NULL);
+	pwm_set2(RED_CHAN(i), DUTY_PCT(50));
+	k_work_schedule(&leds_off, K_SECONDS(2));
+}
+
 int button_action(uint8_t i, uint8_t action) {
 	int ret;
 	int16_t rssi;
@@ -87,17 +94,20 @@ int button_action(uint8_t i, uint8_t action) {
 	ret = lora_config(lora_dev, &lora_tx_cfg);
 	if (ret < 0) {
 		LOG_ERR("Failed to configure TX: %d", ret);
+		on_error(i);
 		return ret;
 	}
 	ret = lora_send(lora_dev, (uint8_t *)&uplink, sizeof(uplink));
 	if (ret < 0) {
 		LOG_ERR("Failed to transmit: %d", ret);
+		on_error(i);
 		return ret;
 	}
 
 	ret = lora_config(lora_dev, &lora_rx_cfg);
 	if (ret < 0) {
 		LOG_ERR("Failed to configure RX: %d", ret);
+		on_error(i);
 		return ret;
 	}
 
