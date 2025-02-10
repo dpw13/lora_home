@@ -1,0 +1,7 @@
+#include <feather-m0-flash-layout.dtsi>
+
+/ {
+	chosen {
+		zephyr,code-partition = &boot_partition;
+	};
+};
