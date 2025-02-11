@@ -2,6 +2,10 @@ Remotes (no sysbuild/mcuboot for now):
 $ west build -b adafruit_feather_m0_lora lora_ctrl
 $ while true; do microcom -p /dev/ttyACM0 -s 115200 2>/dev/null; sleep 2; done
 
+Update bootloader
+Extracted from .uf2 from https://github.com/adafruit/uf2-samdx1 to /home/dwagner/git/uf2-samdx1/flash.bin
+/mnt/c/Program\ Files\ \(x86\)/BOSSA/bossac.exe -p COM20 -e -w -o 0x2000 /home/dwagner/git/uf2-samdx1/flash.bin
+
 Flashing: bossa or bossac, offset 0x2000
 $ /mnt/c/Program\ Files\ \(x86\)/BOSSA/bossac.exe -p COM20 -e -w -o 0x2000 ./build/zephyr/zephyr.bin
 

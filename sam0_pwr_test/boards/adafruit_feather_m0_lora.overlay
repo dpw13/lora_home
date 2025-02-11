@@ -57,6 +57,16 @@
 	#size-cells = <0>;
 };
 
+&wdog {
+	status = "disabled";
+};
+
+&rtc {
+	status = "disabled";
+	counter-mode = "clock";
+	prescaler = <1>;
+};
+
 #include <dt-bindings/pinctrl/samd21-da1gXabcd-pinctrl.h>
 
 &pinctrl {
