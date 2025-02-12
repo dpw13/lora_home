@@ -87,7 +87,10 @@ int button_action(uint8_t i, uint8_t action) {
 	uplink.hdr.type = LORA_PROP_TYPE_REMOTE;
 
 	uplink.hdr.battery_lvl = adc_read_battery();
-	LOG_INF("Battery: %04x Btn: %d", uplink.hdr.battery_lvl, i);
+	int16_t temp = adc_read_temp();
+	int16_t temp_int = temp / 10;
+	int16_t temp_frac = temp - (10 * temp_int);
+	LOG_INF("Battery: %d mV Temp: %d.%d C Btn: %d", uplink.hdr.battery_lvl, temp_int, temp_frac, i);
 
 	uplink.btn = i;
 	uplink.action = action;

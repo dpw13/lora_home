@@ -1,6 +1,6 @@
 Remotes (no sysbuild/mcuboot for now):
 $ west build -b adafruit_feather_m0_lora lora_ctrl
-$ while true; do microcom -p /dev/ttyACM0 -s 115200 2>/dev/null; sleep 2; done
+$ while true; do microcom -p /dev/ttyACM0 -s 921600 2>/dev/null; sleep 2; done
 
 Update bootloader
 Extracted from .uf2 from https://github.com/adafruit/uf2-samdx1 to /home/dwagner/git/uf2-samdx1/flash.bin

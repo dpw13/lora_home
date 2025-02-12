@@ -8,7 +8,7 @@
 	};	
 
 	zephyr,user {
-		io-channels = <&adc 0>, <&adc 1>;
+		io-channels = <&adc 0x7>, <&adc 0x18>;
 	};
 
 	aliases {
@@ -116,21 +116,26 @@
 	pinctrl-0 = <&adc_default>;
 	pinctrl-names = "default";
 
-	channel@0 {
-		reg = <0>;
+	channel@7 {
+		reg = <0x7>;
 		zephyr,gain = "ADC_GAIN_1_2";
 		zephyr,reference = "ADC_REF_VDD_1_2";
-		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 10)>;
+		zephyr,oversampling = <4>; /* Actual oversampling is 2**n */
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 20)>;
+		zephyr,vref-mv = <3300>;
 		zephyr,input-positive = <0x7>;
 		zephyr,resolution = <12>;
 	};
 
-	channel@1 {
-		reg = <1>;
-		zephyr,gain = "ADC_GAIN_1_2";
+	channel@18 {
+		reg = <0x18>;
+		zephyr,gain = "ADC_GAIN_1";
 		zephyr,reference = "ADC_REF_VDD_1_2";
-		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 10)>;
-		/* Temp */
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 20)>;
+		/* Temperature. The Vref value includes the conversion to C, so technically
+		 * this Vref is in units of 0.1 deg C.
+		 */
+		zephyr,vref-mv = <6875>;
 		zephyr,input-positive = <0x18>;
 		zephyr,resolution = <12>;
 	};

@@ -7,9 +7,6 @@
 
 LOG_MODULE_REGISTER(pwm, LOG_LEVEL_INF);
 
-#define DT_SPEC_AND_COMMA(node_id, prop, idx) \
-	ADC_DT_SPEC_GET_BY_IDX(node_id, idx),
-
 /* Data of ADC io-channels specified in devicetree. */
 static const struct pwm_dt_spec pwm_channels[N_LEDS] = {
 	PWM_DT_SPEC_GET(DT_ALIAS(pwm_led0g)),
