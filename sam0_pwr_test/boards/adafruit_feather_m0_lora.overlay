@@ -4,22 +4,13 @@
 
 / {
 	chosen {
+		zephyr,console = &sercom0;
+		zephyr,shell-uart = &sercom0;
 		zephyr,code-partition = &slot0_partition;
 	};	
 
 	aliases {
-		pwm-led = &pwm_led;
-
 		btn0 = &button0;
-	};
-
-	pwmleds {
-		compatible = "pwm-leds";
-
-		pwm_led: pwm_led {
-			pwms = <&tcc0 7 PWM_MSEC(5)>;
-			label = "PWM Board";
-		};
 	};
 
 	buttons {
@@ -34,13 +25,7 @@
 };
 
 &tcc0 {
-	status = "okay";
-	compatible = "atmel,sam0-tcc-pwm";
-	prescaler = <2>;
-	#pwm-cells = <2>;
-
-	pinctrl-0 = <&tcc0_pwm_default>;
-	pinctrl-names = "default";
+	status = "disabled";
 };
 
 &tcc1 {
@@ -49,6 +34,10 @@
 
 &sercom3 {
 	status = "disabled";
+};
+
+&sercom0 {
+	status = "okay";
 };
 
 &adc {
@@ -65,14 +54,4 @@
 	status = "disabled";
 	counter-mode = "clock";
 	prescaler = <1>;
-};
-
-#include <dt-bindings/pinctrl/samd21-da1gXabcd-pinctrl.h>
-
-&pinctrl {
-	tcc0_pwm_default: tcc0_pwm_default {
-		group1 {
-			pinmux = <PA17F_TCC0_WO7>;
-		};
-	};
 };

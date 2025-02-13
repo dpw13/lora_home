@@ -12,6 +12,8 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/drivers/lora.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/usb/usb_device.h>
+#include <zephyr/pm/policy.h>
 #include "app_protocol.h"
 #include "adc.h"
 #include "fuota.h"
@@ -166,9 +168,41 @@ int button_action(uint8_t i, uint8_t action) {
 	return 0;
 }
 
+/* This is a hack to balance the PM state locks, since USB will be reset multiple times
+ * but only disconnected once.
+ */
+inline static void pm_policy_state_lock_get_if_needed(enum pm_state state, uint8_t substate_id) {
+	if (!pm_policy_state_lock_is_active(state, substate_id)) {
+		pm_policy_state_lock_get(state, substate_id);
+	}
+}
+
+void app_usb_status_callback(enum usb_dc_status_code cb_status, const uint8_t *param) {
+	switch (cb_status) {
+		case USB_DC_RESET:
+			/* Disable power management when USB connects */
+			LOG_INF("Disabling idle and standby states");
+			pm_policy_state_lock_get_if_needed(PM_STATE_STANDBY, PM_ALL_SUBSTATES);
+			pm_policy_state_lock_get_if_needed(PM_STATE_SUSPEND_TO_IDLE, PM_ALL_SUBSTATES);
+			pm_policy_state_lock_get_if_needed(PM_STATE_RUNTIME_IDLE, PM_ALL_SUBSTATES);
+			break;
+		case USB_DC_DISCONNECTED:
+			/* Re-enable power management */
+			LOG_INF("Enabling idle and standby states");
+			pm_policy_state_lock_put(PM_STATE_RUNTIME_IDLE, PM_ALL_SUBSTATES);
+			pm_policy_state_lock_put(PM_STATE_SUSPEND_TO_IDLE, PM_ALL_SUBSTATES);
+			pm_policy_state_lock_put(PM_STATE_STANDBY, PM_ALL_SUBSTATES);
+			break;
+		default:
+			/* Nothing */
+	}
+}
+
 int main(void)
 {
 	int ret;
+
+	usb_enable(app_usb_status_callback);
 
 	if (!gpio_is_ready_dt(&led)) {
 		LOG_ERR("LED not ready??");
