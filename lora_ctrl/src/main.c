@@ -74,12 +74,42 @@ void on_error(uint8_t i) {
 	k_work_schedule(&leds_off, K_SECONDS(2));
 }
 
+/**
+ * Estimate the SoC of the battery based on its current voltage (assumed to
+ * be approximately the open-circuit voltage given the low current draw of
+ * this device). Input is in mV, output is 4.12 unsigned FXP in the range
+ * [0, 1]. May exceed 1 while charging.
+ *
+ * The OCV to SoC curve here is a very rough estimate. In general the curve
+ * is lightly nonlinear, so we estimate SoC using a piecewise linear mapping.
+ */
+inline static int16_t mv_to_soc(uint16_t lvl) {
+	if (lvl > 3900) {
+		/* 4200 -> 0x1000 */
+		/* 3900 -> 0x0400 */
+		return ((lvl * 82) - 311608) >> 3;
+	} else {
+		/* 3900 -> 0x0400 */
+		/* 3400 -> 0x0000 */
+		return ((lvl * 16) - 54208) >> 3;
+	}
+}
+
+#define BAR_VARIANCE	0x200
+
+static void render_battery_lvl(uint16_t lvl) {
+	int16_t soc = mv_to_soc(lvl);
+	uint8_t bar_max = (uint8_t)(MIN(soc + BAR_VARIANCE/2, (0xFFF)) >> 4);
+	uint8_t bar_min = (uint8_t)(MAX(soc - BAR_VARIANCE/2, 0) >> 4);
+
+	LOG_DBG("Battery %d mV, soc %03x, bar %02x:%02x", lvl, soc, bar_min, bar_max);
+	display_bar(300, bar_min, bar_max);
+}
+
 int button_action(uint8_t i, uint8_t action) {
 	int ret;
 	int16_t rssi;
 	int8_t snr;
-
-	pwm_set_behavior(&beh_colors);
 
 	/* Set MHDR to proprietary, LoRa major version 1 */
 	struct lora_remote_uplink_t uplink;
@@ -87,6 +117,8 @@ int button_action(uint8_t i, uint8_t action) {
 	uplink.hdr.type = LORA_PROP_TYPE_REMOTE;
 
 	uplink.hdr.battery_lvl = adc_read_battery();
+	render_battery_lvl(uplink.hdr.battery_lvl);
+
 	int16_t temp = adc_read_temp();
 	int16_t temp_int = temp / 10;
 	int16_t temp_frac = temp - (10 * temp_int);

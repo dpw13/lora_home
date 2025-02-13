@@ -10,6 +10,7 @@
 
 /* Change this if base PWM period changes */
 #define DUTY_ONE_PCT    (5000000/100)
+#define DUTY_ONE_255    (5000000/255)
 #define DUTY_PCT(pct)   (pct*DUTY_ONE_PCT)
 
 #define PWM_UPDATE_INTERVAL_US  50000
@@ -31,6 +32,8 @@ struct led_behavior_t {
 	int n_keys;
 };
 
+void display_bar(uint32_t period, uint8_t min, uint8_t max);
+void test_bar(uint32_t period);
 
 int pwm_behavior_off(void);
 int pwm_set_behavior(const struct led_behavior_t *beh);

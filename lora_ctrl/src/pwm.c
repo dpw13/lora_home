@@ -82,6 +82,9 @@ void timer_callback(const struct device *dev, void *unused) {
 		 * after the first key frame
 		 */
 		LOG_ERR("Could not determine start index for delta %d ms idx %d, %d keys", delta, start_idx, behavior.n_keys);
+		for (i=0; i < behavior.n_keys; i++) {
+			LOG_DBG("  Offset %d: %d ms", i, behavior.keys[i].offset_ms);
+		}
 		counter_stop(timer);
 	}
 	__ASSERT(start_idx < behavior.n_keys, "Start key should never be last key frame");
