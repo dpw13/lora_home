@@ -31,6 +31,7 @@ static inline int _led_set_intensity(const struct pwm_dt_spec *channel, uint16_t
 	/* PCT is in 8.8 FXP. Square the value and shift to 16.0 format */
 	uint32_t pulse_width = (PWM_PERIOD_NS/10000) * (((uint32_t)pct * pct) >> 16);
 
+	LOG_DBG("%s.%d: %d ns", channel->dev->name, channel->channel, pulse_width);
 	int ret = pwm_set_pulse_dt(channel, pulse_width);
 	if (ret) {
 		LOG_ERR("failed to set pulse width %d ns on %s.%d: %d", pulse_width, channel->dev->name, channel->channel, ret);
@@ -201,7 +202,7 @@ int led_set_intensity(uint16_t channel, uint8_t pct) {
 		return -EINVAL;
 	}
 
-	_led_set_intensity(&pwm_channels[channel], pct);
+	_led_set_intensity(&pwm_channels[channel], (uint16_t)pct << 8);
 
 	return 0;
 }

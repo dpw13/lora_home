@@ -10,6 +10,7 @@
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/logging/log_ctrl.h>
 #include <zephyr/drivers/lora.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/usb/usb_device.h>
@@ -19,9 +20,11 @@
 #include "fuota.h"
 #include "pwm.h"
 #include "buttons.h"
-
+#include "pm.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
+
+#undef DEBUG
 
 #define LED0_NODE DT_ALIAS(led0)
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
@@ -191,41 +194,9 @@ static int button_action(uint8_t i, uint8_t action) {
 	return 0;
 }
 
-/* This is a hack to balance the PM state locks, since USB will be reset multiple times
- * but only disconnected once.
- */
-inline static void pm_policy_state_lock_get_if_needed(enum pm_state state, uint8_t substate_id) {
-	if (!pm_policy_state_lock_is_active(state, substate_id)) {
-		pm_policy_state_lock_get(state, substate_id);
-	}
-}
-
-void app_usb_status_callback(enum usb_dc_status_code cb_status, const uint8_t *param) {
-	switch (cb_status) {
-		case USB_DC_RESET:
-			/* Disable power management when USB connects */
-			LOG_INF("Disabling idle and standby states");
-			pm_policy_state_lock_get_if_needed(PM_STATE_STANDBY, PM_ALL_SUBSTATES);
-			pm_policy_state_lock_get_if_needed(PM_STATE_SUSPEND_TO_IDLE, PM_ALL_SUBSTATES);
-			pm_policy_state_lock_get_if_needed(PM_STATE_RUNTIME_IDLE, PM_ALL_SUBSTATES);
-			break;
-		case USB_DC_DISCONNECTED:
-			/* Re-enable power management */
-			LOG_INF("Enabling idle and standby states");
-			pm_policy_state_lock_put(PM_STATE_RUNTIME_IDLE, PM_ALL_SUBSTATES);
-			pm_policy_state_lock_put(PM_STATE_SUSPEND_TO_IDLE, PM_ALL_SUBSTATES);
-			pm_policy_state_lock_put(PM_STATE_STANDBY, PM_ALL_SUBSTATES);
-			break;
-		default:
-			/* Nothing */
-	}
-}
-
 int main(void)
 {
 	int ret;
-
-	usb_enable(app_usb_status_callback);
 
 	if (!gpio_is_ready_dt(&led)) {
 		LOG_ERR("LED not ready??");
@@ -241,12 +212,20 @@ int main(void)
 		LOG_ERR("Failed to turn off primary LED");
 	}
 
+	ret = pm_init();
+
 	ret = adc_init();
 	ret = pwm_init();
 	ret = button_init();
 	ret = lora_init();
 
 	LOG_INF("Running");
+
+#ifdef DEBUG
+	pm_disable_lp();
+	k_msleep(200);
+	usb_enable(NULL);
+#endif
 
 	while (1) {
 		/* For some unknown reason, the LoRa functions return an error

@@ -76,6 +76,13 @@
 
 };
 
+&rtc {
+	status = "okay";
+	counter-mode = "clock";
+	prescaler = <1>;
+	systimer;
+};
+
 &tcc0 {
 	status = "okay";
 	compatible = "atmel,sam0-tcc-pwm";

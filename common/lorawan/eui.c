@@ -6,7 +6,7 @@
 #include <lw_priv.h>
 #include "../src/keys.h"
 
-LOG_MODULE_REGISTER(eui, CONFIG_LORAWAN_SERVICES_LOG_LEVEL);
+LOG_MODULE_REGISTER(eui, CONFIG_LORAWAN_LOG_LEVEL);
 
 /**
  * Read and decrypt lorawan secrets
