@@ -63,7 +63,7 @@ int lora_init(void) {
 
 void leds_off_handler(struct k_work *work) {
 	for (int i=0; i < 6; i++) {
-		pwm_set2(i, 0);
+		led_set_intensity(i, 0);
 	}
 }
 
@@ -72,43 +72,66 @@ K_WORK_DELAYABLE_DEFINE(leds_off, leds_off_handler);
 void on_error(uint8_t i) {
 	pwm_behavior_off();
 	leds_off_handler(NULL);
-	pwm_set2(RED_CHAN(i), DUTY_PCT(50));
+	led_set_intensity(RED_CHAN(i), 50);
 	k_work_schedule(&leds_off, K_SECONDS(2));
 }
 
 /**
  * Estimate the SoC of the battery based on its current voltage (assumed to
  * be approximately the open-circuit voltage given the low current draw of
- * this device). Input is in mV, output is 4.12 unsigned FXP in the range
- * [0, 1]. May exceed 1 while charging.
+ * this device). Input is in mV, output is 8.8 unsigned FXP in the range
+ * [0, 100]. May exceed 1 while charging.
  *
  * The OCV to SoC curve here is a very rough estimate. In general the curve
  * is lightly nonlinear, so we estimate SoC using a piecewise linear mapping.
  */
-inline static int16_t mv_to_soc(uint16_t lvl) {
-	if (lvl > 3900) {
-		/* 4200 -> 0x1000 */
-		/* 3900 -> 0x0400 */
-		return ((lvl * 82) - 311608) >> 3;
+inline static int16_t mv_to_soc(uint16_t bat_mv) {
+	int16_t ret;
+
+	if (bat_mv > 3900) {
+		/* 4200 -> 25600 */
+		/* 3900 -> 6400 */
+		ret = ((bat_mv * 64) - 243200);
 	} else {
-		/* 3900 -> 0x0400 */
-		/* 3400 -> 0x0000 */
-		return ((lvl * 16) - 54208) >> 3;
+		/* 3900 -> 6400 */
+		/* 3400 -> 0 */
+		ret = ((bat_mv * 13) - 44300);
 	}
+
+	return MIN(MAX(ret, 0), 25600);
 }
 
 #define BAR_VARIANCE	0x200
 
-static void render_battery_lvl(uint16_t lvl) {
-	int16_t soc = mv_to_soc(lvl);
-	uint8_t bar_max = (uint8_t)(MIN(soc + BAR_VARIANCE/2, (0xFFF)) >> 4);
-	uint8_t bar_min = (uint8_t)(MAX(soc - BAR_VARIANCE/2, 0) >> 4);
+static void render_battery_lvl(uint16_t bat_mv) {
+	int16_t soc = mv_to_soc(bat_mv);
+	uint8_t bar_max = (uint8_t)(MIN(soc + BAR_VARIANCE/2, 25600) >> 8);
+	uint8_t bar_min = (uint8_t)(MAX(soc - BAR_VARIANCE/2, 0) >> 8);
 
-	LOG_DBG("Battery %d mV, soc %03x, bar %02x:%02x", lvl, soc, bar_min, bar_max);
+	LOG_DBG("Battery %d mV, soc %03x, bar %02x:%02x", bat_mv, soc, bar_min, bar_max);
 	display_bar(300, bar_min, bar_max);
 }
 
-int button_action(uint8_t i, uint8_t action) {
+static int custom_local_action(uint8_t i, uint8_t action) {
+	uint16_t both = ((uint16_t)i << 8) | action;
+
+	switch (both) {
+		case 0x022A:
+			/* Triple click button 2: enable USB */
+			pwm_set_behavior(&beh_colors);
+			pm_disable_lp();
+			usb_enable(NULL);
+			return 1;
+		case 0x022B:
+			/* Button 2, short short long: reset into bootloader */
+			reset_into_bootloader();
+			/* no return */
+	}
+
+	return 0;
+}
+
+static int button_action(uint8_t i, uint8_t action) {
 	int ret;
 	int16_t rssi;
 	int8_t snr;
@@ -157,9 +180,9 @@ int button_action(uint8_t i, uint8_t action) {
 	leds_off_handler(NULL);
 	if (ret < 0) {
 		LOG_ERR("Failed to receive: %d", ret);
-		pwm_set2(RED_CHAN(i), 5000000);
+		led_set_intensity(RED_CHAN(i), 100);
 	} else if (ret > 0) {
-		pwm_set2(GREEN_CHAN(i), 5000000);
+		led_set_intensity(GREEN_CHAN(i), 100);
 		LOG_DBG("Received response type %02x: %02x", downlink.hdr.type, downlink.payload);
 	}
 	/* Schedule LEDs off regardless of what we set */
@@ -231,7 +254,11 @@ int main(void)
 		 */
 		struct action_t act;
 		k_msgq_get(&action_queue, &act, K_FOREVER);
-		button_action(act.btn_id, act.action);
+		/* See if there's some local action we should take first */
+		if (!custom_local_action(act.btn_id, act.action)) {
+			/* If not, send the action over LoRa */
+			button_action(act.btn_id, act.action);
+		}
 	}
 
 	//fuota_run();

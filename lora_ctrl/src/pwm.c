@@ -24,6 +24,23 @@ static struct led_behavior_t behavior;
 static uint32_t inv_period[MAX_BEHAVIOR_KEYS];
 
 /**
+ * Set approximate LED intensity assuming a gamma factor of 2.0.
+ * Assumes channel is valid. PCT is 8.8 FXP.
+ */
+static inline int _led_set_intensity(const struct pwm_dt_spec *channel, uint16_t pct) {
+	/* PCT is in 8.8 FXP. Square the value and shift to 16.0 format */
+	uint32_t pulse_width = (PWM_PERIOD_NS/10000) * (((uint32_t)pct * pct) >> 16);
+
+	int ret = pwm_set_pulse_dt(channel, pulse_width);
+	if (ret) {
+		LOG_ERR("failed to set pulse width %d ns on %s.%d: %d", pulse_width, channel->dev->name, channel->channel, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+/**
  * This function assumes that the total number of fractional bits
  * between a and b is 32.
  */
@@ -100,11 +117,11 @@ void timer_callback(const struct device *dev, void *unused) {
 	struct led_behavior_key_t *b = &behavior.keys[start_idx + 1];
 
 	for (i=0; i < N_LEDS; i++) {
-		uint32_t val = interp(a->width_ms[i], b->width_ms[i], alpha);
+		uint32_t val = interp(a->width_pct[i], b->width_pct[i], alpha);
 		if (i == 0) {
-			LOG_DBG("a %08x b %08x val %08x", a->width_ms[i], b->width_ms[i], val);
+			LOG_DBG("a %08x b %08x val %08x", a->width_pct[i], b->width_pct[i], val);
 		}
-		ret = pwm_set_pulse_dt(&pwm_channels[i], val);
+		ret = _led_set_intensity(&pwm_channels[i], val);
 		if (ret < 0) {
 			LOG_ERR("Failed to set channel %d pulse width %d: %d", i, val, ret);
 			counter_stop(timer);
@@ -179,16 +196,12 @@ int pwm_init(void) {
 	return 0;
 }
 
-int pwm_set2(uint16_t channel, uint32_t pulse_width) {
+int led_set_intensity(uint16_t channel, uint8_t pct) {
 	if (channel >= N_LEDS) {
 		return -EINVAL;
 	}
 
-	int ret = pwm_set_pulse_dt(&pwm_channels[channel], pulse_width);
-	if (ret) {
-		LOG_ERR("failed to set pulse width %d ns on channel %d: %d\n", pulse_width, channel, ret);
-		return ret;
-	}
+	_led_set_intensity(&pwm_channels[channel], pct);
 
 	return 0;
 }
