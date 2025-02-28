@@ -58,6 +58,10 @@ def on_remote_button(client, idx: int, action: int):
         msg = rsp.pack(cmd)
         if (port in devices):
             (topic, eui) = devices[port]
+            # We respond by writing to the `application` endpoint, which is
+            # serviced by chirpstack. Downlink frames are sent immediately in
+            # a Class C context. Class C is initiated by the device by sending
+            # a MAC command.
             print(f"Sending cmd {cmd} to {eui} port {port}")
             msg = {
                 "devEui": eui,
@@ -109,14 +113,18 @@ def on_message(client, userdata, msg):
                 # Remote command
                 s = struct.Struct("HBB")
                 (battery, btn, action) = s.unpack_from(uplink.phy_payload, 2)
-                print(f"Battery 0x{battery:04x} button {btn} action {action}")
+                print(f"Battery {battery/1000} V button {btn} action {action}")
                 # Remote press handlers
                 on_remote_button(client, btn, action)
                 # Acknowledge
                 rsp = 1
             print(f"Sending ack {rsp}")
 
-            # Send acknowledgement
+            # Send acknowledgement by writing to the gateway MQTT topic, which
+            # is serviced by the Chirpstack gateway bridge. The bridge simply
+            # forwards protobuf messages received over MQTT directly to the
+            # BasicStation running on the gateway, so we are effectively talking
+            # directly to the BasicStation here.
             ack_topic = "/".join(path[:-2]) + "/command/down"
             ack_dl = gateway.DownlinkFrame()
             ack_dl.gateway_id = path[2]
