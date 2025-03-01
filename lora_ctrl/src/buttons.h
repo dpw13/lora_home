@@ -13,7 +13,7 @@
 
 #define GLITCH_THRESH_MS          5
 #define SHORT_PRESS_THRESH_MS   200
-#define NEXT_PRESS_TIMEOUT_MS   300
+#define NEXT_PRESS_TIMEOUT_MS   1000
 
 /* Button action queue */
 struct action_t {

@@ -3,6 +3,7 @@
 #include <zephyr/logging/log.h>
 #include <inttypes.h>
 
+#include "pm.h"
 #include "buttons.h"
 
 LOG_MODULE_REGISTER(buttons, LOG_LEVEL_INF);
@@ -29,6 +30,7 @@ static void exp_handler(struct k_timer *timer) {
 	uint8_t i = pctx - &ctx[0];
 
 	k_timer_stop(timer);
+	pm_sysclock_allow_idle();
 
 	/* No further action within the timeout period: submit actions */
 	struct action_t act = {
@@ -49,6 +51,27 @@ static inline void on_press(uint8_t i, int64_t now) {
 	ctx[i].press_ticks = now;
 	/* TODO: long press timeout? */
 	k_timer_stop(&ctx[i].exp_timer);
+	/* Ensure that sysclock is not stopped so we can measure
+	* the duration of the press.
+	*/
+	pm_sysclock_force_active();
+}
+
+static inline void on_release(uint8_t i, int64_t now) {
+	int64_t dur = now - ctx[i].press_ticks;
+	ctx[i].press_ticks = 0;
+	LOG_DBG("Button %d press %lld ms", i, dur);
+	if (dur > GLITCH_THRESH_MS) {
+		/* Ignore glitches entirely */
+		ctx[i].action = (ctx[i].action << BTN_ACTION_SIZE) |
+			((dur < SHORT_PRESS_THRESH_MS) ? BTN_ACTION_SHORT : BTN_ACTION_LONG) |
+			BTN_ACTION_VALID;
+	}
+	/* Wait to see if we get any further presses. The period is
+	 * forever to make this is a one-shot.
+	 */
+	LOG_DBG("Starting timer %p", &ctx[i].exp_timer);
+	k_timer_start(&ctx[i].exp_timer, K_MSEC(NEXT_PRESS_TIMEOUT_MS), K_FOREVER);
 }
 
 static void button_irq_callback(const struct device *dev,
@@ -69,20 +92,7 @@ static void button_irq_callback(const struct device *dev,
 					on_press(i, now);
 				} else {
 					/* Release */
-					int64_t dur = now - ctx[i].press_ticks;
-					ctx[i].press_ticks = 0;
-					LOG_DBG("Button %d press %lld ms", i, dur);
-					if (dur > GLITCH_THRESH_MS) {
-						/* Ignore glitches entirely */
-						ctx[i].action = (ctx[i].action << BTN_ACTION_SIZE) |
-							((dur < SHORT_PRESS_THRESH_MS) ? BTN_ACTION_SHORT : BTN_ACTION_LONG) |
-							BTN_ACTION_VALID;
-					}
-					/* Wait to see if we get any further presses. The period is
-					 * forever to make this is a one-shot.
-					 */
-					LOG_DBG("Starting timer %p", &ctx[i].exp_timer);
-					k_timer_start(&ctx[i].exp_timer, K_MSEC(NEXT_PRESS_TIMEOUT_MS), K_FOREVER);
+					on_release(i, now);
 				}
 			}
 			/* Clear bit */
