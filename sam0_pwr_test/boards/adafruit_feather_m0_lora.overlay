@@ -22,14 +22,47 @@
 		};
 	};
 
+	pwmleds {
+		compatible = "pwm-leds";
+
+		pwm_led0: pwm_led_0 {
+			pwms = <&tcc0 0 PWM_MSEC(5)>;
+			label = "PWM 0";
+		};
+
+		pwm_led1: pwm_led_1 {
+			pwms = <&tc4 0 PWM_MSEC(5)>;
+			label = "PWM 1";
+		};
+	};
+
 };
 
 &tcc0 {
-	status = "disabled";
+	compatible = "atmel,sam0-tcc-pwm";
+	status = "okay";
+	prescaler = <2>;
+	#pwm-cells = <2>;
 };
 
 &tcc1 {
 	status = "disabled";
+};
+
+&tc4 {
+	compatible = "atmel,sam0-tc-pwm";
+	status = "okay";
+	counter-size = <16>;
+	prescaler = <2>;
+	channels = <2>;
+	#pwm-cells = <2>;
+};
+
+&tc6 {
+	compatible = "atmel,sam0-tc32";
+	status = "okay";
+	prescaler = <2>;
+	#pwm-cells = <2>;
 };
 
 &sercom3 {
@@ -41,17 +74,18 @@
 };
 
 &adc {
-	status = "disabled";
+	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;
 };
 
 &wdog {
-	status = "disabled";
+	status = "okay";
 };
 
 &rtc {
-	status = "disabled";
+	status = "okay";
 	counter-mode = "clock";
 	prescaler = <1>;
+	systimer;
 };
