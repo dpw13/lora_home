@@ -30,14 +30,14 @@
 
 import argparse
 import base64
-import binascii
+import functools
 import json
 import logging
 import random
 import struct
 from typing import Any
 
-from remote_const import GateState, GateCmd, COMMANDS, PortId, GATE_TOPIC
+from remote_const import GateState, GateCmd, COMMANDS, PortId
 
 from paho.mqtt.reasoncodes import ReasonCode
 from paho.mqtt.properties import Properties
@@ -66,7 +66,7 @@ def send_cmd(client: mqtt.Client, port: int, cmd: GateCmd) -> int:
         # a MAC command.
         logger.info("Sending cmd %s to %s port %d", cmd, eui, port)
         rsp = struct.Struct("B")
-        payload = rsp.pack(cmd)
+        payload = rsp.pack(cmd.value)
         msg = {
             "devEui": eui,
             "confirmed": False,
@@ -90,15 +90,20 @@ class GateStateMachine:
     See https://www.home-assistant.io/integrations/cover.mqtt/
     """
 
-    HA_OPEN = "state_open"
-    HA_OPENING = "state_opening"
-    HA_CLOSED = "state_closed"
-    HA_CLOSING = "state_closing"
+    HA_OPEN = "open"
+    HA_OPENING = "opening"
+    HA_CLOSED = "closed"
+    HA_CLOSING = "closing"
 
     GATE_UID = {
         PortId.GATE_STATE: "driveway_gate",
         PortId.GARAGE1_STATE: "garage_A",
         PortId.GARAGE2_STATE: "garage_B",
+    }
+    DEVICE_CLASS = {
+        PortId.GATE_STATE: "gate",
+        PortId.GARAGE1_STATE: "garage",
+        PortId.GARAGE2_STATE: "garage",
     }
 
     def __init__(
@@ -109,14 +114,13 @@ class GateStateMachine:
         self.state = state
         self.uid = self.GATE_UID[self.port]
         self.eui, _ = devices[self.port.value]
-        client.message_callback_add(
-            self.topic, GateStateMachine.msg_callback, self.cmd_topic
-        )
+        logger.debug("Subscribing to %s", self.cmd_topic)
+        client.message_callback_add(self.cmd_topic, self._cmd_callback)
         self._announce()
 
     @property
     def topic(self):
-        return "/homeassistant/cover/" + self.uid
+        return "homeassistant/cover/" + self.uid
 
     @property
     def cmd_topic(self):
@@ -130,6 +134,10 @@ class GateStateMachine:
     def state_topic(self):
         return self.topic + "/state"
 
+    @property
+    def device_class(self):
+        return self.DEVICE_CLASS[self.port]
+
     def _publish_state(self, ha_state: str):
         """Publish the state to HomeAssistant."""
         self.client.publish(self.state_topic, ha_state, retain=True)
@@ -139,7 +147,7 @@ class GateStateMachine:
 
         See https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery
         """
-        name = self.uid.replace('_', ' ').capitalize()
+        name = self.uid.replace("_", " ").capitalize()
         msg = {
             "device": {
                 "mf": "Wagner Metalworks",
@@ -147,37 +155,37 @@ class GateStateMachine:
                 "sw": "1.0",
                 "sn": self.eui,
                 "hw": "1.0",
-                "identifiers": [self.eui]
+                "identifiers": [self.eui],
             },
             "origin": {
                 "name": "remote_svc",
                 "sw": "1.0",
             },
-            "device_class": "cover",
+            "device_class": self.device_class,
             "name": name,
             "unique_id": self.uid,
             "~": self.topic,
             "command_topic": "~/command",
             "state_topic": "~/state",
         }
-        self.client.publish(self.config_topic, msg, retain=True)
+        self.client.publish(self.config_topic, json.dumps(msg), retain=True)
 
-    def cmd_callback(self, msg: mqtt.MQTTMessage):
+    def _cmd_callback(self, client, userdata, msg: mqtt.MQTTMessage):
         """Handle any MQTT message published to this topic."""
-        path = msg.topic.split("/")
-        if path[-1] == "command":
-            if msg.payload.lower() == "open":
-                send_cmd(self.client, self.port.value, GateCmd.MOM_OPEN)
-            elif msg.payload.lower() == "close":
-                send_cmd(self.client, self.port.value, GateCmd.CLOSE)
-            else:
-                logger.warning("Unknown command payload %s", msg.payload)
+        logger.debug("Got command callback at %s: %s", msg.topic, msg.payload)
+        if msg.payload.lower() == b"open":
+            send_cmd(self.client, self.port.value, GateCmd.MOM_OPEN)
+        elif msg.payload.lower() == b"close":
+            send_cmd(self.client, self.port.value, GateCmd.CLOSE)
+        else:
+            logger.warning("Unknown command payload %s", msg.payload)
 
     @staticmethod
     def msg_callback(
         client: mqtt.Client, obj: "GateStateMachine", msg: mqtt.MQTTMessage
     ):
         """MQTT message callback."""
+        logger.debug("rx cb %s", msg.topic)
         obj.msg_callback(msg)
 
     def update(self, state: GateState):
@@ -225,15 +233,15 @@ def on_application_uplink(client: mqtt.Client, path: list[str], obj: Any):
         devices[port] = data
         try:
             port_id = PortId(port)
-            state = GateState(obj.get("data").get("state"))
+            state = GateState(obj.get("object").get("state"))
             if port_id not in gate_sm:
                 gate_sm[port_id] = GateStateMachine(client, port_id, state)
             # Update state and possibly publish to HA
             gate_sm[port_id].update(state)
-        except Exception as e:
-            # Need to check which exceptions are thrown with unidentified
-            # ports, as those are harmless and should not warn.
-            logger.warning("Could not update gate state: %s", e)
+        except ValueError:
+            # ValueError due to invalid port ID can be ignored, we just don't
+            # do anything with messages we don't do anything for.
+            pass
 
 
 def send_downlink(
@@ -290,10 +298,7 @@ def on_gateway_uplink(
 
     if uplink.phy_payload[0] == 0xE0:
         # proprietary frame: this is us
-        logger.debug(
-            "    phy payload = %s", binascii.hexlify(uplink.phy_payload).decode()
-        )
-        logger.debug(uplink)
+        #logger.debug(uplink)
         rsp = 0
         if uplink.phy_payload[1] == 0x01:
             # Remote command
@@ -322,6 +327,8 @@ def on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage):
 
     The callback for when a PUBLISH message is received from the server.
     """
+    logger.debug("rx %s", msg.topic)
+
     path = msg.topic.split("/")
     if path[0] == "application" and path[-1] == "up":
         obj: dict = json.loads(msg.payload)
@@ -333,7 +340,7 @@ def on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage):
     elif path[1] == "gateway" and path[-1] == "up":
         uplink = gateway.UplinkFrame()
         uplink.ParseFromString(msg.payload)
-        logger.debug("%s: %s", msg.topic, uplink)
+        #logger.debug("%s: %s", msg.topic, uplink)
         on_gateway_uplink(client, path, uplink)
 
 
@@ -352,6 +359,7 @@ def on_connect(
     # client.subscribe("$SYS/#")
     client.subscribe("us915_0/gateway/#")
     client.subscribe("application/#")
+    client.subscribe("homeassistant/cover/+/command")
     # client.subscribe("us915_0/gateway/#")
 
 
@@ -369,13 +377,17 @@ def main():
         prog="remote_svc.py", description="LoRa MQTT and remote adapter"
     )
 
-    parser.add_argument("-h", "--host", default="potato6300", help="The MQTT host")
+    parser.add_argument("-H", "--host", default="potato6300", help="The MQTT host")
     parser.add_argument("-p", "--port", type=int, default=1883, help="The MQTT port")
     parser.add_argument(
         "-k", "--keepalive", type=int, default=60, help="The MQTT keepalive interval"
     )
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
+
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
 
     mqttc.connect(args.host, args.port, args.keepalive)
 
