@@ -1,4 +1,4 @@
- #!/usr/bin/env python3
+#!/usr/bin/env python3
 
 # Subscribes to MQTT topics to listen to proprietary LoRaWAN
 # frames sent by the remotes. Transforms the data sent by the
@@ -32,11 +32,11 @@ import argparse
 import json
 import logging
 import random
-import struct
 from typing import Any
 
 from remote_const import GateState, COMMANDS, PortId
 from gate_ctrl import GateStateMachine
+from remote_dev import RemoteDevice
 
 from paho.mqtt.reasoncodes import ReasonCode
 from paho.mqtt.properties import Properties
@@ -52,28 +52,7 @@ logger = logging.getLogger(__name__)
 
 
 gate_sm: dict[PortId, GateStateMachine] = {}
-
-
-def on_remote_button(idx: int, action: int):
-    """Handle button press on remote."""
-    if idx in COMMANDS:
-        port, action_map = COMMANDS[idx]
-        cmd = action_map.get(action, 0)
-
-        logger.debug("port %d cmd %s", port, cmd)
-
-        if not cmd:
-            logger.info("No action taken")
-            return 0
-
-        if port in gate_sm:
-            gate_sm[port].command(cmd)
-            # ACK
-            return 1
-        else:
-            logger.warning("Destination controller for port %d is unknown", port)
-            # NACK: no action taken
-            return 0
+remote: RemoteDevice = None
 
 
 def on_application_uplink(client: mqtt.Client, path: list[str], obj: Any):
@@ -150,17 +129,7 @@ def on_gateway_uplink(
 
     if uplink.phy_payload[0] == 0xE0:
         # proprietary frame: this is us
-        # logger.debug(uplink)
-        rsp = 0
-        if uplink.phy_payload[1] == 0x01:
-            # Remote command
-            s = struct.Struct("HBB")
-            (battery, btn, action) = s.unpack_from(uplink.phy_payload, 2)
-            logger.info("Battery %f V button %d action %d", battery / 1000, btn, action)
-            # Remote press handlers
-            rsp = on_remote_button(btn, action)
-            # Acknowledge
-        logger.debug("Sending ack %s", rsp)
+        ack_payload = remote.on_uplink(uplink.phy_payload)
 
         # Send acknowledgement by writing to the gateway MQTT topic, which
         # is serviced by the Chirpstack gateway bridge. The bridge simply
@@ -168,8 +137,6 @@ def on_gateway_uplink(
         # BasicStation running on the gateway, so we are effectively talking
         # directly to the BasicStation here.
         ack_topic = "/".join(path[:-2]) + "/command/down"
-        ack_msg = struct.Struct("BBB")
-        ack_payload = ack_msg.pack(0xE0, 0x00, rsp)
         send_downlink(
             client, ack_topic, path[2], None, uplink.rx_info.context, ack_payload
         )
@@ -246,6 +213,11 @@ def main():
         logger.setLevel(logging.DEBUG)
 
     mqttc.connect(args.host, args.port, args.keepalive)
+
+    # Remote devices are created statically at startup.
+    # pylint: disable=global-statement
+    global remote
+    remote = RemoteDevice(mqttc, 3)
 
     # Blocking call that processes network traffic, dispatches callbacks and
     # handles reconnecting.

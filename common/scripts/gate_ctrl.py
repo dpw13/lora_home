@@ -88,7 +88,7 @@ class GateStateMachine:
         msg = {
             "device": {
                 "mf": "Wagner Metalworks",
-                "mdl": "LoRa Gate Controller",
+                "name": "LoRa Gate Controller",
                 "sw": "1.0",
                 "sn": self.eui,
                 "hw": "1.0",
