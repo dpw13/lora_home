@@ -29,7 +29,7 @@ class RemoteDevice:
     @property
     def topic(self):
         """The HomeAssistant component MQTT topic"""
-        return "homeassistant/event/" + self.uid
+        return "homeassistant/device_automation/" + self.uid
 
     @property
     def config_topic(self):
@@ -57,31 +57,50 @@ class RemoteDevice:
 
     @staticmethod
     def _action_name(action: int) -> str:
-        return f"press_{bin(action)[2:]}"
+        action_seq: list[str] = []
+        action_names = ['short', 'long']
+        while action > 0:
+            # Actions are encoded in two bits. The upper bit indicates the action
+            # is valid, and the lower bit indicates short vs long.
+            action_seq.append(action_names[action & 0x01])
+            action = action >> 2
+        # TODO: could be reversed
+        return "press_" + "_".join(action_seq)
 
     def _publish_state(self, btn: int, action: int) -> int:
         """Publish the state to HomeAssistant."""
-        msg = {
-            "event_type": f"button_{btn}",
-            "action": RemoteDevice._action_name(action)
-        }
-        self.client.publish(self.state_topic, json.dumps(msg))
+        msg = RemoteDevice._action_name(action),
+        self.client.publish(f"{self.topic}/button_{btn}", msg)
         # ACK
         return 1
 
     def _announce(self):
+        for btn in range(0, self.btn_count):
+            for action_len in range(1,3):
+                for action_bin in range(0, 2**action_len):
+                    seq = bin(action_bin)[2:].rjust(action_len, '0')
+                    action = 0
+                    for char in seq:
+                        if char == '1':
+                            action = (action << 2) + 3
+                        else:
+                            action = (action << 2) + 2
+                    self._announce_single(btn, action)
+
+    def _announce_single(self, btn: int, action: int):
         """Publish an auto-discovery announcement message.
 
         See https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery
         """
         # TODO: battery voltage
 
-        name = "LoRa Remote"
+        button_name = f"button_{btn}"
+        action_name = self._action_name(action)
         msg = {
             "device": {
                 "mf": "Wagner Metalworks",
                 "name": "LoRa Remote",
-                "icon": "mdi:remote",
+                "mdl": "Adafruit Feather M0",
                 "sw": "1.0",
                 "sn": self.sn,
                 "hw": "1.0",
@@ -91,10 +110,12 @@ class RemoteDevice:
                 "name": "remote_svc",
                 "sw": "1.0",
             },
-            "name": name,
-            "unique_id": self.uid,
-            "event_types": [f"button_{i}" for i in range(0,self.btn_count)],
-            "~": self.topic,
-            "state_topic": "~/state",
+            "automation_type": "trigger",
+            "type": action_name,
+            "subtype": button_name,
+            "topic": f"{self.topic}/{button_name}",
+            "payload": action_name,
         }
-        self.client.publish(self.config_topic, json.dumps(msg), retain=True)
+        # Need separate config topics for each type/subtype combination. This appears to be what HA
+        # requires so even though there is a *lot* of duplication, this is what we're going with.
+        self.client.publish(f"{self.topic}/{button_name}_action_{action}/config", json.dumps(msg), retain=True)

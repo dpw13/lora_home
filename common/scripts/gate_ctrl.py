@@ -88,8 +88,9 @@ class GateStateMachine:
         msg = {
             "device": {
                 "mf": "Wagner Metalworks",
-                "name": "LoRa Gate Controller",
+                "name": self.device_class.capitalize() + " Controller",
                 "sw": "1.0",
+                "mdl": "Seeed XIAO ESP32S3",
                 "sn": self.eui,
                 "hw": "1.0",
                 "identifiers": [self.eui],
@@ -113,7 +114,7 @@ class GateStateMachine:
         # serviced by chirpstack. Downlink frames are sent immediately in
         # a Class C context. Class C is initiated by the device by sending
         # a MAC command.
-        logger.info("Sending cmd %s to %s port %d", cmd, self.eui, self.port)
+        logger.info("Sending cmd %s to %s port %s", cmd, self.eui, self.port)
         rsp = struct.Struct("B")
         payload = rsp.pack(cmd.value)
         msg = {
