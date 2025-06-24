@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+ #!/usr/bin/env python3
 
 # Subscribes to MQTT topics to listen to proprietary LoRaWAN
 # frames sent by the remotes. Transforms the data sent by the
@@ -29,15 +29,14 @@
 # chirpstack=# \q
 
 import argparse
-import base64
-import functools
 import json
 import logging
 import random
 import struct
 from typing import Any
 
-from remote_const import GateState, GateCmd, COMMANDS, PortId
+from remote_const import GateState, COMMANDS, PortId
+from gate_ctrl import GateStateMachine
 
 from paho.mqtt.reasoncodes import ReasonCode
 from paho.mqtt.properties import Properties
@@ -52,158 +51,10 @@ import gw.gw_pb2 as gateway
 logger = logging.getLogger(__name__)
 
 
-devices: dict[int, Any] = {}
+gate_sm: dict[PortId, GateStateMachine] = {}
 
 
-def send_cmd(client: mqtt.Client, port: int, cmd: GateCmd) -> int:
-    """Send a downlink message to the controller to change state."""
-    if port in devices:
-        # TODO: might should be part of GateStateMachine below
-        (topic, eui) = devices[port]
-        # We respond by writing to the `application` endpoint, which is
-        # serviced by chirpstack. Downlink frames are sent immediately in
-        # a Class C context. Class C is initiated by the device by sending
-        # a MAC command.
-        logger.info("Sending cmd %s to %s port %d", cmd, eui, port)
-        rsp = struct.Struct("B")
-        payload = rsp.pack(cmd.value)
-        msg = {
-            "devEui": eui,
-            "confirmed": False,
-            "fPort": port,
-            "data": base64.b64encode(payload).decode(),
-        }
-        logger.debug(msg)
-        client.publish(f"{topic}/command/down", json.dumps(msg))
-
-        # ACK
-        return 1
-    else:
-        logger.warning("Destination eui for port %d is unknown", port)
-        # NACK: no action taken
-        return 0
-
-
-class GateStateMachine:
-    """Translates gate controller state messages to messages HA understands.
-
-    See https://www.home-assistant.io/integrations/cover.mqtt/
-    """
-
-    HA_OPEN = "open"
-    HA_OPENING = "opening"
-    HA_CLOSED = "closed"
-    HA_CLOSING = "closing"
-
-    GATE_UID = {
-        PortId.GATE_STATE: "driveway_gate",
-        PortId.GARAGE1_STATE: "garage_A",
-        PortId.GARAGE2_STATE: "garage_B",
-    }
-    DEVICE_CLASS = {
-        PortId.GATE_STATE: "gate",
-        PortId.GARAGE1_STATE: "garage",
-        PortId.GARAGE2_STATE: "garage",
-    }
-
-    def __init__(
-        self, client: mqtt.Client, port: PortId, state: GateState = GateState.CLOSED
-    ):
-        self.client = client
-        self.port = port
-        self.state = state
-        self.uid = self.GATE_UID[self.port]
-        self.eui, _ = devices[self.port.value]
-        logger.debug("Subscribing to %s", self.cmd_topic)
-        client.message_callback_add(self.cmd_topic, self._cmd_callback)
-        self._announce()
-
-    @property
-    def topic(self):
-        return "homeassistant/cover/" + self.uid
-
-    @property
-    def cmd_topic(self):
-        return self.topic + "/command"
-
-    @property
-    def config_topic(self):
-        return self.topic + "/config"
-
-    @property
-    def state_topic(self):
-        return self.topic + "/state"
-
-    @property
-    def device_class(self):
-        return self.DEVICE_CLASS[self.port]
-
-    def _publish_state(self, ha_state: str):
-        """Publish the state to HomeAssistant."""
-        self.client.publish(self.state_topic, ha_state, retain=True)
-
-    def _announce(self):
-        """Publish an auto-discovery announcement message.
-
-        See https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery
-        """
-        name = self.uid.replace("_", " ").capitalize()
-        msg = {
-            "device": {
-                "mf": "Wagner Metalworks",
-                "mdl": "LoRa Gate Controller",
-                "sw": "1.0",
-                "sn": self.eui,
-                "hw": "1.0",
-                "identifiers": [self.eui],
-            },
-            "origin": {
-                "name": "remote_svc",
-                "sw": "1.0",
-            },
-            "device_class": self.device_class,
-            "name": name,
-            "unique_id": self.uid,
-            "~": self.topic,
-            "command_topic": "~/command",
-            "state_topic": "~/state",
-        }
-        self.client.publish(self.config_topic, json.dumps(msg), retain=True)
-
-    def _cmd_callback(self, client, userdata, msg: mqtt.MQTTMessage):
-        """Handle any MQTT message published to this topic."""
-        logger.debug("Got command callback at %s: %s", msg.topic, msg.payload)
-        if msg.payload.lower() == b"open":
-            send_cmd(self.client, self.port.value, GateCmd.MOM_OPEN)
-        elif msg.payload.lower() == b"close":
-            send_cmd(self.client, self.port.value, GateCmd.CLOSE)
-        else:
-            logger.warning("Unknown command payload %s", msg.payload)
-
-    @staticmethod
-    def msg_callback(
-        client: mqtt.Client, obj: "GateStateMachine", msg: mqtt.MQTTMessage
-    ):
-        """MQTT message callback."""
-        logger.debug("rx cb %s", msg.topic)
-        obj.msg_callback(msg)
-
-    def update(self, state: GateState):
-        """Update gate state and publish message to HomeAssistant."""
-        if state == GateState.MOVING:
-            if self.state == GateState.CLOSED:
-                self._publish_state(self.HA_OPENING)
-            else:
-                self._publish_state(self.HA_CLOSING)
-        elif state in (GateState.HOLD_OPEN, GateState.MOM_OPEN):
-            self._publish_state(self.HA_OPEN)
-        elif state == GateState.CLOSED:
-            self._publish_state(self.HA_CLOSED)
-
-        self.state = state
-
-
-def on_remote_button(client: mqtt.Client, idx: int, action: int):
+def on_remote_button(idx: int, action: int):
     """Handle button press on remote."""
     if idx in COMMANDS:
         port, action_map = COMMANDS[idx]
@@ -215,10 +66,14 @@ def on_remote_button(client: mqtt.Client, idx: int, action: int):
             logger.info("No action taken")
             return 0
 
-        return send_cmd(client, port, cmd)
-
-
-gate_sm: dict[PortId, GateStateMachine] = {}
+        if port in gate_sm:
+            gate_sm[port].command(cmd)
+            # ACK
+            return 1
+        else:
+            logger.warning("Destination controller for port %d is unknown", port)
+            # NACK: no action taken
+            return 0
 
 
 def on_application_uplink(client: mqtt.Client, path: list[str], obj: Any):
@@ -227,15 +82,13 @@ def on_application_uplink(client: mqtt.Client, path: list[str], obj: Any):
     if port != 0:
         topic = "/".join(path[:-2])
         eui = obj["deviceInfo"]["devEui"]
-        data = (topic, eui)
-        if port not in devices or devices[port] != data:
-            logger.info("Registering port %d to %s", port, eui)
-        devices[port] = data
+
         try:
             port_id = PortId(port)
             state = GateState(obj.get("object").get("state"))
             if port_id not in gate_sm:
-                gate_sm[port_id] = GateStateMachine(client, port_id, state)
+                logger.info("Registering port %d to %s", port, eui)
+                gate_sm[port_id] = GateStateMachine(client, port_id, topic, eui, state)
             # Update state and possibly publish to HA
             gate_sm[port_id].update(state)
         except ValueError:
@@ -294,11 +147,10 @@ def on_gateway_uplink(
     # proprietary non-LoRaWAN LoRa-compatible messages.
     # Presumably the MIC is not calculated for proprietary frames since it's
     # not defined which key should be used.
-    ack_msg = struct.Struct("BBB")
 
     if uplink.phy_payload[0] == 0xE0:
         # proprietary frame: this is us
-        #logger.debug(uplink)
+        # logger.debug(uplink)
         rsp = 0
         if uplink.phy_payload[1] == 0x01:
             # Remote command
@@ -306,7 +158,7 @@ def on_gateway_uplink(
             (battery, btn, action) = s.unpack_from(uplink.phy_payload, 2)
             logger.info("Battery %f V button %d action %d", battery / 1000, btn, action)
             # Remote press handlers
-            rsp = on_remote_button(client, btn, action)
+            rsp = on_remote_button(btn, action)
             # Acknowledge
         logger.debug("Sending ack %s", rsp)
 
@@ -316,12 +168,14 @@ def on_gateway_uplink(
         # BasicStation running on the gateway, so we are effectively talking
         # directly to the BasicStation here.
         ack_topic = "/".join(path[:-2]) + "/command/down"
+        ack_msg = struct.Struct("BBB")
         ack_payload = ack_msg.pack(0xE0, 0x00, rsp)
         send_downlink(
             client, ack_topic, path[2], None, uplink.rx_info.context, ack_payload
         )
 
 
+# pylint: disable=unused-argument
 def on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage):
     """Handle messages on subscribed topics.
 
@@ -340,7 +194,7 @@ def on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage):
     elif path[1] == "gateway" and path[-1] == "up":
         uplink = gateway.UplinkFrame()
         uplink.ParseFromString(msg.payload)
-        #logger.debug("%s: %s", msg.topic, uplink)
+        # logger.debug("%s: %s", msg.topic, uplink)
         on_gateway_uplink(client, path, uplink)
 
 
@@ -382,7 +236,9 @@ def main():
     parser.add_argument(
         "-k", "--keepalive", type=int, default=60, help="The MQTT keepalive interval"
     )
-    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose logging"
+    )
 
     args = parser.parse_args()
 
