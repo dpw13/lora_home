@@ -135,6 +135,11 @@ class GateStateMachine:
             self.command(GateCmd.MOM_OPEN)
         elif msg.payload.lower() == b"close":
             self.command(GateCmd.CLOSE)
+        elif msg.payload.lower() == b"stop":
+            if self.state == GateState.MOM_OPEN:
+                # Stop during momentary open should be interpreted as hold open
+                self.command(GateCmd.HOLD_OPEN)
+            # TODO: we don't currently do anything to stop a partially opened or closed cover.
         else:
             logger.warning("Unknown command payload %s", msg.payload)
 
